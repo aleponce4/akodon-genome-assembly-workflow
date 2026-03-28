@@ -1,0 +1,14 @@
+logs/
+output/
+*.out
+*.err
+.conda/
+bootstrap/
+smoke_test/
+augustus_config/
+data/
+RNA_seq/bam_files/
+old_job_scripts/
+annotation/singularity_images/*.sif
+annotation_functional/data/bin/*.sif
+Repeat_modeler_container/

@@ -1,0 +1,140 @@
+[aponcefl@login2 Akodon_genome_assembly]$ tree -L 2
+.
+├── annotation
+│   ├── augustus_config_braker2
+│   ├── augustus_config_galba
+│   ├── bin
+│   ├── input
+│   ├── logs
+│   ├── original_headers
+│   ├── output
+│   └── singularity_images
+├── annotation_comparative
+│   ├── bin
+│   ├── input
+│   ├── logs
+│   └── output
+├── annotation_functional
+│   ├── data
+│   ├── input
+│   ├── interproscan_troubleshooting.sh
+│   ├── output
+│   ├── run_interproscan.sh
+│   └── temp
+├── augustus_config
+│   └── config
+├── blast_dbs
+│   ├── blast_database.sh
+│   ├── ProtExcluder.sh
+│   ├── setup_uniprot_db_2051126.err
+│   ├── setup_uniprot_db_2051126.out
+│   ├── temp
+│   └── test_blast_output.txt
+├── data
+│   ├── 4512-JFI-0337_S1_L001_I1_001.fastq.gz
+│   ├── 4512-JFI-0337_S1_L001_R1_001.fastq.gz
+│   ├── 4512-JFI-0337_S1_L001_R2_001.fastq.gz
+│   ├── 4512-JFI-0338_S2_L002_I1_001.fastq.gz
+│   ├── 4512-JFI-0338_S2_L002_R1_001.fastq.gz
+│   ├── 4512-JFI-0338_S2_L002_R2_001.fastq.gz
+│   ├── 4512-JFI-0339_S3_L003_I1_001.fastq.gz
+│   ├── 4512-JFI-0339_S3_L003_R1_001.fastq.gz
+│   ├── 4512-JFI-0339_S3_L003_R2_001.fastq.gz
+│   ├── 4512-JFI-0340_S4_L004_I1_001.fastq.gz
+│   ├── 4512-JFI-0340_S4_L004_R1_001.fastq.gz
+│   └── 4512-JFI-0340_S4_L004_R2_001.fastq.gz
+├── folder_structure.txt
+├── job_scripts
+│   ├── busco_batch_job.sh
+│   ├── busco_batch_job.sh.save
+│   ├── busco_downloads
+│   ├── busco_plot.sh
+│   ├── CDHit_repeats.sh
+│   ├── filter_genomes.sh
+│   ├── log_files
+│   ├── mkoutput_loop.sh
+│   ├── quast_reference
+│   ├── repeat_library.sh
+│   ├── repeat_masker_akodon_0337.sh
+│   ├── repeat_masker_akodon_0338.sh
+│   ├── repeat_masker_akodon_0339.sh
+│   ├── repeat_masker_akodon_0340.sh
+│   ├── repeat_masker_akodon_test.sh
+│   ├── repeat_stats.sh
+│   ├── run_multiQC.sh
+│   ├── run_quast_job.sh
+│   ├── run_quast_noRef.sh
+│   ├── supernova_run_0337.sh
+│   ├── supernova_run_0338.sh
+│   ├── supernova_run_0339.sh
+│   └── supernova_run_0340.sh
+├── output
+│   ├── BUSCO_results
+│   ├── BUSCO_results_filtered
+│   ├── filtered_fasta
+│   ├── multiQC
+│   ├── multiQC_filtered
+│   ├── pseudohap2
+│   ├── QUAST_results
+│   ├── QUAST_results_filtered
+│   ├── Repeat_masker
+│   └── Repeat_modeler
+├── Repeat_modeler_container
+│   └── tetools_latest.sif
+├── RNA_seq
+│   ├── 00_fastq
+│   ├── analyze_all_bam_2393742.err
+│   ├── analyze_all_bam_2393742.out
+│   ├── analyze_all_bam.sh
+│   ├── analyze_bam_2393643.err
+│   ├── analyze_bam_2393643.out
+│   ├── analyze_bam.sh
+│   ├── bam_files
+│   ├── coverage_metrics.csv
+│   ├── fastq_reports
+.
+│   ├── genome_index
+│   ├── log_files
+│   ├── RNA_align.sh
+│   ├── RNA_align_stringent.sh
+│   ├── RNA_align_test.sh
+│   ├── RNA_preprocessing.sh
+│   ├── RNAseq_Align_2390477_4294967294.err
+│   ├── RNAseq_Align_2390477_4294967294.out
+│   ├── RNAseq_Align_stringent_2393919_4294967294.err
+│   ├── RNAseq_Align_stringent_2393919_4294967294.out
+│   ├── RNAseq_QC_2389000_4294967294.err
+│   ├── RNAseq_QC_2389000_4294967294.out
+│   └── trimmed_data
+├── supernova-2.1.1
+│   ├── assembly-tiny-fastq
+│   ├── builtwith.json
+│   ├── martian-cs
+│   ├── miniconda-cs
+│   ├── product.json
+│   ├── sourceme.bash
+│   ├── sourceme.csh
+│   ├── supernova-cs
+│   └── supernova-shell
+└── trimmed_data_output
+    ├── BUSCO_QUAST.sh
+    ├── BUSCO_results
+    ├── fastqc_results
+    ├── filtered_scaffolds
+    ├── filter_genomes2.sh
+    ├── log_files
+    ├── mkoutput_loop.sh
+    ├── mkoutput_pseudohap
+    ├── MultiQC_results
+    ├── preprocessing.sh
+    ├── QUAST_results
+    ├── rename_files.sh
+    ├── Repeat_masker
+    ├── repeat_masker_array.sh
+    ├── repeat_masker_test
+    ├── supernova_output
+    ├── supernova_run_0337.sh
+    ├── supernova_run_0338.sh
+    ├── supernova_run_0339.sh
+    ├── supernova_run_0340.sh
+    └── trimmed_data
