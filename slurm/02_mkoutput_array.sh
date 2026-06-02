@@ -3,11 +3,13 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_PATH="${1:-${CONFIG:-}}"
+[[ -n "$CONFIG_PATH" ]] || { echo "ERROR: config path is required" >&2; exit 1; }
+CONFIG_DIR="$(cd "$(dirname "$CONFIG_PATH")" && pwd)"
+PIPELINE_ROOT="$(cd "$CONFIG_DIR/.." && pwd)"
 
-# shellcheck source=../scripts/lib/common.sh
-source "$SCRIPT_DIR/../scripts/lib/common.sh"
+# shellcheck source=scripts/lib/common.sh
+source "$PIPELINE_ROOT/scripts/lib/common.sh"
 source_config "$CONFIG_PATH"
 ensure_base_dirs
 

@@ -4,6 +4,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_PATH="${1:-$SCRIPT_DIR/config/pipeline.env}"
+CONFIG_DIR="$(cd "$(dirname "$CONFIG_PATH")" && pwd)"
+CONFIG_PATH="$CONFIG_DIR/$(basename "$CONFIG_PATH")"
 
 # shellcheck source=scripts/lib/common.sh
 source "$SCRIPT_DIR/scripts/lib/common.sh"
