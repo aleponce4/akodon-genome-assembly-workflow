@@ -15,11 +15,15 @@ rename_repeatmasker_outputs() {
     local output_dir="$1"
     local source_base="$2"
     local target_base="$3"
+    local ext
 
-    mv "$output_dir/$source_base.cat" "$output_dir/$target_base.cat"
-    mv "$output_dir/$source_base.masked" "$output_dir/$target_base.masked"
-    mv "$output_dir/$source_base.out" "$output_dir/$target_base.out"
-    mv "$output_dir/$source_base.tbl" "$output_dir/$target_base.tbl"
+    for ext in cat cat.gz masked out tbl out.gff; do
+        if [[ -f "$output_dir/$source_base.$ext" ]]; then
+            mv "$output_dir/$source_base.$ext" "$output_dir/$target_base.$ext"
+        fi
+    done
+
+    [[ -f "$output_dir/$target_base.masked" ]] || die "RepeatMasker masked output was not found after renaming: $output_dir/$target_base.masked"
 }
 
 skip_library_round() {
@@ -64,6 +68,7 @@ log "RepeatMasker round 1 for sample $sample_id"
     -pa "$repeatmasker_threads" \
     -noint \
     -xsmall \
+    -gff \
     -species "$REPEATMASKER_SPECIES" \
     -dir "$masker_output_dir" \
     "$input_fasta"
@@ -77,6 +82,7 @@ log "RepeatMasker round 2 for sample $sample_id"
     -pa "$repeatmasker_threads" \
     -nolow \
     -xsmall \
+    -gff \
     -species "$REPEATMASKER_SPECIES" \
     -dir "$masker_output_dir" \
     "$round2_input"
@@ -91,6 +97,7 @@ if [[ -s "$known_repeats" ]]; then
     "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatMasker \
         -pa "$repeatmasker_threads" \
         -xsmall \
+        -gff \
         -lib "$known_repeats" \
         -dir "$masker_output_dir" \
         "$round3_input"
@@ -109,6 +116,7 @@ if [[ -s "$unknown_repeats" ]]; then
     "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatMasker \
         -pa "$repeatmasker_threads" \
         -xsmall \
+        -gff \
         -lib "$unknown_repeats" \
         -dir "$masker_output_dir" \
         "$round4_input"

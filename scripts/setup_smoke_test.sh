@@ -22,7 +22,6 @@ done
 
 ensure_dir "$ANNOTATION_INPUT_DIR"
 ensure_dir "$NCBI_PROTEIN_ZIP_DIR"
-ensure_dir "$(dirname "$BRAKER3_BAM_GLOB")"
 ensure_dir "$INTERPROSCAN_OUTPUT_DIR"
 
 cat > "$NCBI_DATASETS_TSV" <<EOF
@@ -31,7 +30,14 @@ GCF_smoke	SmokeAssembly
 EOF
 
 write_smoke_fasta "$ANNOTATION_INPUT_DIR/Vertebrata.fa" "vertebrate_smoke" "MPEPTIDESEQ"
-write_smoke_fasta "$(dirname "$BRAKER3_BAM_GLOB")/smoke.bam" "placeholder" "NOT_A_REAL_BAM"
+
+for ((idx = 0; idx < sample_total; idx++)); do
+    sample_id="$(sample_id_by_index "$idx")"
+    bam_glob="$(braker3_bam_glob_for_sample "$sample_id")"
+    bam_dir="$(dirname "$bam_glob")"
+    ensure_dir "$bam_dir"
+    write_smoke_fasta "$bam_dir/smoke.bam" "placeholder" "NOT_A_REAL_BAM"
+done
 
 for cfg in 1 2 3; do
     cat > "$ANNOTATION_INPUT_DIR/tsebra_config_${cfg}.cfg" <<EOF
@@ -40,4 +46,4 @@ filter=smoke
 EOF
 done
 
-log "Smoke test inputs prepared under $PIPELINE_ROOT/smoke_test"
+log "Smoke test inputs prepared under DATA_DIR=$DATA_DIR and OUTPUT_DIR=$OUTPUT_DIR"

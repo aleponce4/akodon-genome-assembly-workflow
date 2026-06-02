@@ -52,12 +52,30 @@ array_spec() {
 }
 
 array_bounds="$(sample_array_bounds)"
+annotation_array_bounds="$(annotation_sample_array_bounds)"
 supernova_array="$(array_spec "$array_bounds" "$SUPERNOVA_ARRAY_CONCURRENCY")"
 mkoutput_array="$(array_spec "$array_bounds" "$MKOUTPUT_ARRAY_CONCURRENCY")"
 filter_array="$(array_spec "$array_bounds" "$FILTER_ARRAY_CONCURRENCY")"
 busco_array="$(array_spec "$array_bounds" "$BUSCO_ARRAY_CONCURRENCY")"
 repeatmodeler_array="$(array_spec "$array_bounds" "$REPEATMODELER_ARRAY_CONCURRENCY")"
 repeatmasker_array="$(array_spec "$array_bounds" "$REPEATMASKER_ARRAY_CONCURRENCY")"
+annotation_array="$(array_spec "$annotation_array_bounds" "$ANNOTATION_ARRAY_CONCURRENCY")"
+
+workflow_start_dependency=""
+
+if truthy "$ENABLE_PREFLIGHT"; then
+    preflight_job_id="$(submit_stage "" \
+        --job-name=akodon_preflight \
+        --partition="$PREFLIGHT_PARTITION" \
+        --qos="$PREFLIGHT_QOS" \
+        --time="$PREFLIGHT_TIME" \
+        --cpus-per-task="$PREFLIGHT_CPUS" \
+        --mem="$PREFLIGHT_MEM" \
+        --output="$LOG_DIR/preflight_%j.out" \
+        --error="$LOG_DIR/preflight_%j.err" \
+        "$SCRIPT_DIR/slurm/00_tool_preflight.sh" "$CONFIG_PATH")"
+    workflow_start_dependency="$preflight_job_id"
+fi
 
 declare -a supernova_args=(
     --job-name=akodon_supernova
@@ -75,7 +93,7 @@ if [[ -n "$SUPERNOVA_NODELIST" ]]; then
     supernova_args+=(--nodelist="$SUPERNOVA_NODELIST")
 fi
 
-supernova_job_id="$(submit_stage "" "${supernova_args[@]}" "$SCRIPT_DIR/slurm/01_supernova_array.sh" "$CONFIG_PATH")"
+supernova_job_id="$(submit_stage "$workflow_start_dependency" "${supernova_args[@]}" "$SCRIPT_DIR/slurm/01_supernova_array.sh" "$CONFIG_PATH")"
 
 mkoutput_job_id="$(submit_stage "$supernova_job_id" \
     --job-name=akodon_mkoutput \
@@ -207,8 +225,9 @@ if truthy "$ENABLE_ANNOTATION"; then
         --time="$ANNOTATION_PREPROCESS_TIME" \
         --cpus-per-task="$ANNOTATION_PREPROCESS_CPUS" \
         --mem="$ANNOTATION_PREPROCESS_MEM" \
-        --output="$LOG_DIR/annotation_preprocess_%j.out" \
-        --error="$LOG_DIR/annotation_preprocess_%j.err" \
+        --array="$annotation_array" \
+        --output="$LOG_DIR/annotation_preprocess_%A_%a.out" \
+        --error="$LOG_DIR/annotation_preprocess_%A_%a.err" \
         "$SCRIPT_DIR/slurm/11_annotation_preprocess_genome.sh" "$CONFIG_PATH")"
 
     if truthy "$ENABLE_ANNOTATION_PROTEIN_DOWNLOAD"; then
@@ -247,8 +266,9 @@ if truthy "$ENABLE_ANNOTATION"; then
             --time="$GALBA_TIME" \
             --cpus-per-task="$GALBA_CPUS" \
             --mem="$GALBA_MEM" \
-            --output="$LOG_DIR/galba_%j.out" \
-            --error="$LOG_DIR/galba_%j.err" \
+            --array="$annotation_array" \
+            --output="$LOG_DIR/galba_%A_%a.out" \
+            --error="$LOG_DIR/galba_%A_%a.err" \
             "$SCRIPT_DIR/slurm/14_galba.sh" "$CONFIG_PATH")"
     fi
 
@@ -261,8 +281,9 @@ if truthy "$ENABLE_ANNOTATION"; then
             --time="$BRAKER2_TIME" \
             --cpus-per-task="$BRAKER2_CPUS" \
             --mem="$BRAKER2_MEM" \
-            --output="$LOG_DIR/braker2_%j.out" \
-            --error="$LOG_DIR/braker2_%j.err" \
+            --array="$annotation_array" \
+            --output="$LOG_DIR/braker2_%A_%a.out" \
+            --error="$LOG_DIR/braker2_%A_%a.err" \
             "$SCRIPT_DIR/slurm/15_braker2.sh" "$CONFIG_PATH")"
     fi
 
@@ -274,13 +295,14 @@ if truthy "$ENABLE_ANNOTATION"; then
             --time="$BRAKER3_TIME" \
             --cpus-per-task="$BRAKER3_CPUS" \
             --mem="$BRAKER3_MEM" \
-            --output="$LOG_DIR/braker3_%j.out" \
-            --error="$LOG_DIR/braker3_%j.err" \
+            --array="$annotation_array" \
+            --output="$LOG_DIR/braker3_%A_%a.out" \
+            --error="$LOG_DIR/braker3_%A_%a.err" \
             "$SCRIPT_DIR/slurm/16_braker3.sh" "$CONFIG_PATH")"
     fi
 
     if truthy "$ENABLE_TSEBRA"; then
-        tsebra_dependency="$(join_dependencies "${galba_job_id:-}" "${braker3_job_id:-}")"
+        tsebra_dependency="$(join_dependencies "${galba_job_id:-}" "${braker2_job_id:-}" "${braker3_job_id:-}")"
         tsebra_job_id="$(submit_stage "$tsebra_dependency" \
             --job-name=akodon_tsebra \
             --partition="$TSEBRA_PARTITION" \
@@ -288,8 +310,9 @@ if truthy "$ENABLE_ANNOTATION"; then
             --time="$TSEBRA_TIME" \
             --cpus-per-task="$TSEBRA_CPUS" \
             --mem="$TSEBRA_MEM" \
-            --output="$LOG_DIR/tsebra_%j.out" \
-            --error="$LOG_DIR/tsebra_%j.err" \
+            --array="$annotation_array" \
+            --output="$LOG_DIR/tsebra_%A_%a.out" \
+            --error="$LOG_DIR/tsebra_%A_%a.err" \
             "$SCRIPT_DIR/slurm/17_tsebra.sh" "$CONFIG_PATH")"
     fi
 
@@ -302,8 +325,9 @@ if truthy "$ENABLE_ANNOTATION"; then
             --time="$ISOFORM_TIME" \
             --cpus-per-task="$ISOFORM_CPUS" \
             --mem="$ISOFORM_MEM" \
-            --output="$LOG_DIR/isoform_filter_%j.out" \
-            --error="$LOG_DIR/isoform_filter_%j.err" \
+            --array="$annotation_array" \
+            --output="$LOG_DIR/isoform_filter_%A_%a.out" \
+            --error="$LOG_DIR/isoform_filter_%A_%a.err" \
             "$SCRIPT_DIR/slurm/18_isoform_filter.sh" "$CONFIG_PATH")"
     fi
 
@@ -316,8 +340,9 @@ if truthy "$ENABLE_ANNOTATION"; then
             --time="$REASSIGN_TIME" \
             --cpus-per-task="$REASSIGN_CPUS" \
             --mem="$REASSIGN_MEM" \
-            --output="$LOG_DIR/restore_headers_%j.out" \
-            --error="$LOG_DIR/restore_headers_%j.err" \
+            --array="$annotation_array" \
+            --output="$LOG_DIR/restore_headers_%A_%a.out" \
+            --error="$LOG_DIR/restore_headers_%A_%a.err" \
             "$SCRIPT_DIR/slurm/19_restore_headers.sh" "$CONFIG_PATH")"
     fi
 
@@ -330,13 +355,17 @@ if truthy "$ENABLE_ANNOTATION"; then
             --time="$INTERPROSCAN_TIME" \
             --cpus-per-task="$INTERPROSCAN_CPUS" \
             --mem="$INTERPROSCAN_MEM" \
-            --output="$LOG_DIR/interproscan_%j.out" \
-            --error="$LOG_DIR/interproscan_%j.err" \
+            --array="$annotation_array" \
+            --output="$LOG_DIR/interproscan_%A_%a.out" \
+            --error="$LOG_DIR/interproscan_%A_%a.err" \
             "$SCRIPT_DIR/slurm/20_interproscan.sh" "$CONFIG_PATH")"
     fi
 fi
 
 printf 'Submitted workflow with these job IDs:\n'
+if [[ -n "${preflight_job_id:-}" ]]; then
+    printf '  Preflight:          %s\n' "$preflight_job_id"
+fi
 printf '  Supernova:          %s\n' "$supernova_job_id"
 printf '  mkoutput:           %s\n' "$mkoutput_job_id"
 printf '  Filter FASTA:       %s\n' "$filter_job_id"

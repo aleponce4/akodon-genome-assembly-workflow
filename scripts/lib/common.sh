@@ -158,6 +158,7 @@ ensure_base_dirs() {
     ensure_dir "$ANNOTATION_FUNCTIONAL_INPUT_DIR"
     ensure_dir "$ANNOTATION_FUNCTIONAL_OUTPUT_DIR"
     ensure_dir "$ANNOTATION_FUNCTIONAL_TEMP_DIR"
+    ensure_dir "$PREFLIGHT_DIR"
 }
 
 sample_count() {
@@ -286,27 +287,40 @@ annotation_header_map() {
 
 annotation_restored_genome() {
     local sample_id="${1:-$ANNOTATION_SAMPLE_ID}"
-    printf '%s/%s_with_original_headers.fasta' "$ANNOTATION_ORIGINAL_HEADERS_DIR" "$(annotation_genome_base "$sample_id")"
+    printf '%s/%s_with_original_headers.fasta' "$(annotation_original_headers_dir "$sample_id")" "$(annotation_genome_base "$sample_id")"
+}
+
+annotation_sample_output_dir() {
+    local sample_id="${1:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/%s' "$ANNOTATION_OUTPUT_DIR" "$sample_id"
+}
+
+annotation_original_headers_dir() {
+    local sample_id="${1:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/%s' "$ANNOTATION_ORIGINAL_HEADERS_DIR" "$sample_id"
 }
 
 annotation_predictor_link() {
     local predictor="$1"
-    printf '%s/%s_current' "$ANNOTATION_OUTPUT_DIR" "$predictor"
+    local sample_id="${2:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/%s_current' "$(annotation_sample_output_dir "$sample_id")" "$predictor"
 }
 
 annotation_predictor_runs_dir() {
     local predictor="$1"
-    printf '%s/%s_runs' "$ANNOTATION_OUTPUT_DIR" "$predictor"
+    local sample_id="${2:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/%s_runs' "$(annotation_sample_output_dir "$sample_id")" "$predictor"
 }
 
 annotation_predictor_gtf() {
     local predictor="$1"
+    local sample_id="${2:-$ANNOTATION_SAMPLE_ID}"
     case "$predictor" in
         galba)
-            printf '%s/galba.gtf' "$(annotation_predictor_link "$predictor")"
+            printf '%s/galba.gtf' "$(annotation_predictor_link "$predictor" "$sample_id")"
             ;;
         braker2|braker3)
-            printf '%s/braker.gtf' "$(annotation_predictor_link "$predictor")"
+            printf '%s/%s' "$(annotation_predictor_link "$predictor" "$sample_id")" "$BRAKER_GTF_BASENAME"
             ;;
         *)
             die "Unsupported predictor for GTF lookup: $predictor"
@@ -316,7 +330,8 @@ annotation_predictor_gtf() {
 
 annotation_predictor_hints() {
     local predictor="$1"
-    printf '%s/hintsfile.gff' "$(annotation_predictor_link "$predictor")"
+    local sample_id="${2:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/hintsfile.gff' "$(annotation_predictor_link "$predictor" "$sample_id")"
 }
 
 is_supported_tsebra_source() {
@@ -348,54 +363,65 @@ predictor_enable_var() {
 }
 
 annotation_tsebra_runs_dir() {
-    printf '%s/tsebra_runs' "$ANNOTATION_OUTPUT_DIR"
+    local sample_id="${1:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/tsebra_runs' "$(annotation_sample_output_dir "$sample_id")"
 }
 
 annotation_tsebra_current_dir() {
-    printf '%s/tsebra_current' "$ANNOTATION_OUTPUT_DIR"
+    local sample_id="${1:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/tsebra_current' "$(annotation_sample_output_dir "$sample_id")"
 }
 
 annotation_tsebra_run_dir() {
     local config_name="$1"
-    printf '%s/%s' "$(annotation_tsebra_current_dir)" "$config_name"
+    local sample_id="${2:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/%s' "$(annotation_tsebra_current_dir "$sample_id")" "$config_name"
 }
 
 annotation_tsebra_gtf() {
     local config_name="$1"
-    printf '%s/tsebra_%s.gtf' "$(annotation_tsebra_run_dir "$config_name")" "$config_name"
+    local sample_id="${2:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/tsebra_%s.gtf' "$(annotation_tsebra_run_dir "$config_name" "$sample_id")" "$config_name"
 }
 
 annotation_tsebra_prefix() {
     local config_name="$1"
-    printf '%s/tsebra_%s' "$(annotation_tsebra_run_dir "$config_name")" "$config_name"
+    local sample_id="${2:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/tsebra_%s' "$(annotation_tsebra_run_dir "$config_name" "$sample_id")" "$config_name"
 }
 
 annotation_isoform_root() {
-    printf '%s/isoform_filtered_for_omark' "$ANNOTATION_OUTPUT_DIR"
+    local sample_id="${1:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/isoform_filtered_for_omark' "$(annotation_sample_output_dir "$sample_id")"
 }
 
 annotation_isoform_dir() {
     local model_name="$1"
-    printf '%s/%s' "$(annotation_isoform_root)" "$model_name"
+    local sample_id="${2:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/%s' "$(annotation_isoform_root "$sample_id")" "$model_name"
 }
 
 annotation_isoform_gtf() {
     local model_name="$1"
-    printf '%s/%s_longest_isoform.gtf' "$(annotation_isoform_dir "$model_name")" "$model_name"
+    local sample_id="${2:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/%s_longest_isoform.gtf' "$(annotation_isoform_dir "$model_name" "$sample_id")" "$model_name"
 }
 
 annotation_isoform_prefix() {
     local model_name="$1"
-    printf '%s/%s' "$(annotation_isoform_dir "$model_name")" "$model_name"
+    local sample_id="${2:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/%s' "$(annotation_isoform_dir "$model_name" "$sample_id")" "$model_name"
 }
 
 annotation_isoform_aa() {
     local model_name="$1"
-    printf '%s.aa' "$(annotation_isoform_prefix "$model_name")"
+    local sample_id="${2:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s.aa' "$(annotation_isoform_prefix "$model_name" "$sample_id")"
 }
 
 annotation_interproscan_run_dir() {
-    printf '%s/%s' "$INTERPROSCAN_OUTPUT_DIR" "$INTERPROSCAN_RUN_NAME"
+    local sample_id="${1:-$ANNOTATION_SAMPLE_ID}"
+    printf '%s/%s/%s' "$INTERPROSCAN_OUTPUT_DIR" "$sample_id" "$INTERPROSCAN_RUN_NAME"
 }
 
 known_repeat_library() {
@@ -411,6 +437,86 @@ sample_array_bounds() {
     count="$(sample_count)"
     (( count > 0 )) || die "No samples were found in $SAMPLES_TSV"
     printf '0-%d' "$((count - 1))"
+}
+
+annotation_sample_count() {
+    case "${ANNOTATION_SAMPLE_MODE:-single}" in
+        all)
+            sample_count
+            ;;
+        single)
+            printf '1\n'
+            ;;
+        *)
+            die "Unsupported ANNOTATION_SAMPLE_MODE: ${ANNOTATION_SAMPLE_MODE:-}"
+            ;;
+    esac
+}
+
+annotation_sample_array_bounds() {
+    local count
+    count="$(annotation_sample_count)"
+    (( count > 0 )) || die "No annotation samples were found."
+    printf '0-%d' "$((count - 1))"
+}
+
+annotation_sample_id_by_index() {
+    local index="$1"
+
+    case "${ANNOTATION_SAMPLE_MODE:-single}" in
+        all)
+            sample_id_by_index "$index"
+            ;;
+        single)
+            [[ "$index" == "0" ]] || die "Single annotation mode only supports array index 0."
+            printf '%s\n' "$ANNOTATION_SAMPLE_ID"
+            ;;
+        *)
+            die "Unsupported ANNOTATION_SAMPLE_MODE: ${ANNOTATION_SAMPLE_MODE:-}"
+            ;;
+    esac
+}
+
+current_annotation_sample_id() {
+    local index="${SLURM_ARRAY_TASK_ID:-0}"
+    annotation_sample_id_by_index "$index"
+}
+
+braker3_bam_glob_for_sample() {
+    local sample_id="$1"
+    local glob_template="$BRAKER3_BAM_GLOB_TEMPLATE"
+    local stem
+
+    if [[ "${ANNOTATION_SAMPLE_MODE:-single}" == "single" && -n "${BRAKER3_BAM_GLOB:-}" ]]; then
+        printf '%s\n' "$BRAKER3_BAM_GLOB"
+        return 0
+    fi
+
+    stem="$(assembly_stem "$sample_id")"
+    glob_template="${glob_template//\{sample_id\}/$sample_id}"
+    glob_template="${glob_template//\{assembly_stem\}/$stem}"
+    printf '%s\n' "$glob_template"
+}
+
+assert_softmasked_fasta() {
+    local fasta_file="$1"
+    local lower_count
+
+    [[ -f "$fasta_file" ]] || die "Softmask check input not found: $fasta_file"
+    lower_count="$(awk '
+        /^>/ { next }
+        {
+            for (i = 1; i <= length($0); i++) {
+                c = substr($0, i, 1)
+                if (c ~ /[acgtn]/) {
+                    count++
+                }
+            }
+        }
+        END { print count + 0 }
+    ' "$fasta_file")"
+
+    (( lower_count > 0 )) || die "Genome FASTA has no lowercase bases; expected softmasked RepeatMasker output: $fasta_file"
 }
 
 count_fasta_records() {

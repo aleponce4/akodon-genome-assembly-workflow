@@ -47,7 +47,20 @@ report_command() {
     printf '    %-24s %s\n' "$label [$status]" "$resolved"
 }
 
+report_glob() {
+    local label="$1"
+    local pattern="$2"
+    local status="MISSING"
+
+    if compgen -G "$pattern" >/dev/null 2>&1; then
+        status="OK"
+    fi
+
+    printf '    %-24s %s\n' "$label [$status]" "$pattern"
+}
+
 printf 'Pipeline stage order\n'
+printf '  00  Tool/path/line-ending preflight\n'
 printf '  01  Supernova assembly\n'
 printf '  02  Supernova mkoutput -> canonical pseudohap FASTA\n'
 printf '  03  Scaffold filtering with seqkit\n'
@@ -83,6 +96,7 @@ report_path "GALBA image" "$GALBA_SIF" file
 report_path "InterProScan image" "$INTERPROSCAN_SIF" file
 report_path "InterProScan data" "$INTERPROSCAN_DATA_DIR" dir
 report_path "Longest isoform script" "$ANNOTATION_LONGEST_ISOFORM_SCRIPT" file
+report_path "Preflight dir" "$PREFLIGHT_DIR" dir
 printf '\n'
 
 sample_total="$(sample_count)"
@@ -149,16 +163,31 @@ printf '    Original contig headers are restored for final genome/GTF deliverabl
 printf '  18 -> 20\n'
 printf '    InterProScan runs on a chosen predicted protein FASTA, likely GALBA or TSEBRA output.\n'
 printf '\n'
-printf 'Annotation paths for configured sample %s\n' "$ANNOTATION_SAMPLE_ID"
-report_path "Masked genome input" "$(annotation_masked_genome "$ANNOTATION_SAMPLE_ID")" file
-report_path "Simplified genome" "$(annotation_simplified_genome "$ANNOTATION_SAMPLE_ID")" file
-report_path "Genome header map" "$(annotation_header_map "$ANNOTATION_SAMPLE_ID")" file
+printf 'Annotation mode\n'
+printf '    ANNOTATION_SAMPLE_MODE     %s\n' "$ANNOTATION_SAMPLE_MODE"
+printf '    ANNOTATION_FINAL_MODEL     %s\n' "$ANNOTATION_FINAL_MODEL"
+printf '    BRAKER3 BAM template       %s\n' "$BRAKER3_BAM_GLOB_TEMPLATE"
+printf '\n'
+
+annotation_total="$(annotation_sample_count)"
+for ((idx = 0; idx < annotation_total; idx++)); do
+    annotation_sample="$(annotation_sample_id_by_index "$idx")"
+    printf 'Annotation paths for sample %s\n' "$annotation_sample"
+    report_path "Masked genome input" "$(annotation_masked_genome "$annotation_sample")" file
+    report_path "Simplified genome" "$(annotation_simplified_genome "$annotation_sample")" file
+    report_path "Genome header map" "$(annotation_header_map "$annotation_sample")" file
+    report_glob "BRAKER3 BAM glob" "$(braker3_bam_glob_for_sample "$annotation_sample")"
+    report_path "GALBA current" "$(annotation_predictor_link galba "$annotation_sample")" dir
+    report_path "BRAKER2 current" "$(annotation_predictor_link braker2 "$annotation_sample")" dir
+    report_path "BRAKER3 current" "$(annotation_predictor_link braker3 "$annotation_sample")" dir
+    report_path "TSEBRA current" "$(annotation_tsebra_current_dir "$annotation_sample")" dir
+    report_path "Isoform root" "$(annotation_isoform_root "$annotation_sample")" dir
+    report_path "Restored headers dir" "$(annotation_original_headers_dir "$annotation_sample")" dir
+    report_path "InterProScan run dir" "$(annotation_interproscan_run_dir "$annotation_sample")" dir
+    printf '\n'
+done
+
+printf 'Shared annotation inputs\n'
 report_path "Protein zip dir" "$NCBI_PROTEIN_ZIP_DIR" dir
 report_path "Simplified proteins" "$SIMPLIFIED_PROTEIN_FASTA" file
-report_path "GALBA current" "$(annotation_predictor_link galba)" dir
-report_path "BRAKER2 current" "$(annotation_predictor_link braker2)" dir
-report_path "BRAKER3 current" "$(annotation_predictor_link braker3)" dir
-report_path "TSEBRA current" "$(annotation_tsebra_current_dir)" dir
-report_path "Isoform root" "$(annotation_isoform_root)" dir
-report_path "Restored headers dir" "$ANNOTATION_ORIGINAL_HEADERS_DIR" dir
-report_path "InterProScan run dir" "$(annotation_interproscan_run_dir)" dir
+report_path "BRAKER3 proteins" "$BRAKER3_PROTEIN_FASTA" file

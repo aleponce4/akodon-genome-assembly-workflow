@@ -34,10 +34,18 @@ log "Building RepeatModeler database for sample $sample_id"
 "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" BuildDatabase -name "$database_name" -engine ncbi "$input_fasta"
 
 log "Running RepeatModeler for sample $sample_id"
+repeatmodeler_args=(
+    -threads "${SLURM_CPUS_PER_TASK:-$REPEATMODELER_CPUS}"
+    -engine ncbi
+    -database "$database_name"
+)
+
+if truthy "$REPEATMODELER_LTRSTRUCT"; then
+    repeatmodeler_args+=(-LTRStruct)
+fi
+
 "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatModeler \
-    -threads "${SLURM_CPUS_PER_TASK:-$REPEATMODELER_CPUS}" \
-    -engine ncbi \
-    -database "$database_name" \
+    "${repeatmodeler_args[@]}" \
     2>&1 | tee "${database_name}_repeatmodeler.log"
 
 find "$workdir" -type f \( -name 'consensi.fa.classified' -o -name '*classified-families.fa' -o -name '*-families.fa' \) | grep -q . \

@@ -11,11 +11,12 @@ source "$SCRIPT_DIR/../scripts/lib/common.sh"
 source_config "$CONFIG_PATH"
 ensure_base_dirs
 
-run_dir="$(annotation_interproscan_run_dir)"
+sample_id="$(current_annotation_sample_id)"
+run_dir="$(annotation_interproscan_run_dir "$sample_id")"
 input_fasta="$INTERPROSCAN_INPUT_FASTA"
 
 if [[ -z "$input_fasta" ]]; then
-    input_fasta="$(annotation_isoform_aa "$ANNOTATION_FINAL_MODEL")"
+    input_fasta="$(annotation_isoform_aa "$ANNOTATION_FINAL_MODEL" "$sample_id")"
 fi
 
 ensure_dir "$run_dir"

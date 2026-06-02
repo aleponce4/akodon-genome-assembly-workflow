@@ -11,13 +11,13 @@ source "$SCRIPT_DIR/../scripts/lib/common.sh"
 source_config "$CONFIG_PATH"
 ensure_base_dirs
 
-sample_id="$ANNOTATION_SAMPLE_ID"
+sample_id="$(current_annotation_sample_id)"
 genome_fasta="$(annotation_simplified_genome "$sample_id")"
-run_root="$(annotation_predictor_runs_dir galba)"
+run_root="$(annotation_predictor_runs_dir galba "$sample_id")"
 timestamp="$(date +'%Y%m%d_%H%M%S')"
 run_dir="$run_root/galba_output_$timestamp"
-augustus_dir="$ANNOTATION_AUGUSTUS_GALBA_DIR/$timestamp"
-current_link="$(annotation_predictor_link galba)"
+augustus_dir="$ANNOTATION_AUGUSTUS_GALBA_DIR/$sample_id/$timestamp"
+current_link="$(annotation_predictor_link galba "$sample_id")"
 
 ensure_dir "$run_root"
 ensure_dir "$run_dir"
@@ -36,6 +36,7 @@ fi
 [[ -f "$genome_fasta" ]] || die "Simplified annotation genome not found: $genome_fasta"
 [[ -f "$GALBA_PROTEIN_FASTA" ]] || die "GALBA protein FASTA not found: $GALBA_PROTEIN_FASTA"
 command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not found: $SINGULARITY_BIN"
+assert_softmasked_fasta "$genome_fasta"
 
 log "Preparing writable AUGUSTUS config for GALBA"
 "$SINGULARITY_BIN" exec "$GALBA_SIF" cp -r /opt/Augustus/config "$augustus_dir"
@@ -55,4 +56,4 @@ log "Running GALBA"
         --AUGUSTUS_CONFIG_PATH=/opt/Augustus/config
 
 ln -sfn "$run_dir" "$current_link"
-[[ -f "$(annotation_predictor_gtf galba)" ]] || die "GALBA GTF was not created: $(annotation_predictor_gtf galba)"
+[[ -f "$(annotation_predictor_gtf galba "$sample_id")" ]] || die "GALBA GTF was not created: $(annotation_predictor_gtf galba "$sample_id")"

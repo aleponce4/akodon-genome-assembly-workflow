@@ -12,6 +12,7 @@ source_config "$CONFIG_PATH"
 ensure_base_dirs
 
 declare -a quast_inputs=()
+declare -a quast_labels=()
 sample_total="$(sample_count)"
 
 for ((idx = 0; idx < sample_total; idx++)); do
@@ -19,6 +20,7 @@ for ((idx = 0; idx < sample_total; idx++)); do
     fasta_path="$(filtered_fasta "$sample_id")"
     [[ -f "$fasta_path" ]] || die "Filtered FASTA not found: $fasta_path"
     quast_inputs+=("$fasta_path")
+    quast_labels+=("$(basename "$fasta_path" .fasta)")
 done
 
 declare -a quast_args=(
@@ -29,6 +31,7 @@ declare -a quast_args=(
     --fragmented
     --split-scaffolds
     --circos
+    -l "$(IFS=,; printf '%s' "${quast_labels[*]}")"
 )
 
 if truthy "$ENABLE_QUAST_REFERENCE"; then
@@ -38,10 +41,31 @@ fi
 
 if smoke_mode; then
     log "Smoke mode: creating mock QUAST report"
-    cat > "$(quast_report_tsv)" <<EOF
-Assembly	# contigs	Total length
-smoke	1	32
-EOF
+    {
+        printf 'Assembly'
+        for label in "${quast_labels[@]}"; do
+            printf '\t%s' "$label"
+        done
+        printf '\n'
+
+        printf '# contigs'
+        for label in "${quast_labels[@]}"; do
+            printf '\t1'
+        done
+        printf '\n'
+
+        printf 'Total length'
+        for label in "${quast_labels[@]}"; do
+            printf '\t32'
+        done
+        printf '\n'
+
+        printf 'N50'
+        for label in "${quast_labels[@]}"; do
+            printf '\t32'
+        done
+        printf '\n'
+    } > "$(quast_report_tsv)"
     exit 0
 fi
 

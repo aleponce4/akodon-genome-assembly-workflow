@@ -11,13 +11,13 @@ source "$SCRIPT_DIR/../scripts/lib/common.sh"
 source_config "$CONFIG_PATH"
 ensure_base_dirs
 
-sample_id="$ANNOTATION_SAMPLE_ID"
+sample_id="$(current_annotation_sample_id)"
 genome_fasta="$(annotation_simplified_genome "$sample_id")"
-run_root="$(annotation_predictor_runs_dir braker2)"
+run_root="$(annotation_predictor_runs_dir braker2 "$sample_id")"
 timestamp="$(date +'%Y%m%d_%H%M%S')"
 run_dir="$run_root/braker2_output_$timestamp"
-augustus_dir="$ANNOTATION_AUGUSTUS_BRAKER2_DIR/$timestamp"
-current_link="$(annotation_predictor_link braker2)"
+augustus_dir="$ANNOTATION_AUGUSTUS_BRAKER2_DIR/$sample_id/$timestamp"
+current_link="$(annotation_predictor_link braker2 "$sample_id")"
 
 ensure_dir "$run_root"
 ensure_dir "$run_dir"
@@ -26,6 +26,7 @@ ensure_dir "$augustus_dir"
 
 if smoke_mode; then
     log "Smoke mode: creating mock BRAKER2 outputs"
+    write_smoke_gtf "$run_dir/$BRAKER_GTF_BASENAME" "$(annotation_header_name_stem "$sample_id")1"
     write_smoke_gtf "$run_dir/braker.gtf" "$(annotation_header_name_stem "$sample_id")1"
     write_smoke_hints "$run_dir/hintsfile.gff" "$(annotation_header_name_stem "$sample_id")1"
     ln -sfn "$run_dir" "$current_link"
@@ -36,6 +37,7 @@ fi
 [[ -f "$genome_fasta" ]] || die "Simplified annotation genome not found: $genome_fasta"
 [[ -f "$BRAKER2_PROTEIN_FASTA" ]] || die "BRAKER2 protein FASTA not found: $BRAKER2_PROTEIN_FASTA"
 command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not found: $SINGULARITY_BIN"
+assert_softmasked_fasta "$genome_fasta"
 
 log "Preparing writable AUGUSTUS config for BRAKER2"
 "$SINGULARITY_BIN" exec "$BRAKER_SIF" cp -r /opt/Augustus/config "$augustus_dir"
@@ -52,7 +54,8 @@ log "Running BRAKER2"
         --prot_seq="$BRAKER2_PROTEIN_FASTA" \
         --workingdir="$run_dir" \
         --threads="${SLURM_CPUS_PER_TASK:-$BRAKER2_CPUS}" \
+        --softmasking \
         --AUGUSTUS_CONFIG_PATH=/opt/Augustus/config
 
 ln -sfn "$run_dir" "$current_link"
-[[ -f "$(annotation_predictor_gtf braker2)" ]] || die "BRAKER2 GTF was not created: $(annotation_predictor_gtf braker2)"
+[[ -f "$(annotation_predictor_gtf braker2 "$sample_id")" ]] || die "BRAKER2 GTF was not created: $(annotation_predictor_gtf braker2 "$sample_id")"

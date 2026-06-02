@@ -20,11 +20,12 @@ Assembly:
 
 Annotation:
 
+0. preflight checks for line endings, tools, paths, FASTQs, and evidence files
 11. simplify masked genome headers
 12. download reference proteins from NCBI
 13. prepare combined protein FASTA
 14. GALBA
-15. BRAKER2
+15. BRAKER2, available but off by default
 16. BRAKER3
 17. TSEBRA
 18. longest-isoform filtering
@@ -34,9 +35,11 @@ Annotation:
 Notes:
 
 - stages `14`, `15`, and `16` are alternative prediction tracks
-- TSEBRA combines selected predictor outputs
+- the default annotation track is GALBA + BRAKER3 combined by TSEBRA
+- annotation runs for all samples by default, with sample-specific output folders
 - the annotation branch starts after RepeatMasker
 - Supernova should use raw, untrimmed 10x linked-read FASTQs
+- BRAKER3 BAMs must be aligned to the same simplified assembly headers used for that sample
 
 ## Main Tools
 
@@ -58,6 +61,7 @@ Notes:
 - [`config/samples.tsv`](config/samples.tsv): sample metadata
 - [`run_pipeline.sh`](run_pipeline.sh): full workflow submission
 - [`run_smoke_test.sh`](run_smoke_test.sh): smoke test
+- [`run_slurm_smoke_test.sh`](run_slurm_smoke_test.sh): real-SLURM toy submission
 - [`slurm/`](slurm): numbered stage scripts
 - [`scripts/check_pipeline_connections.sh`](scripts/check_pipeline_connections.sh): preflight path check
 - [`scripts/hpc/bootstrap_dependencies.sh`](scripts/hpc/bootstrap_dependencies.sh): HPC bootstrap
@@ -68,7 +72,16 @@ Notes:
 - sample table in `config/samples.tsv`
 - BUSCO lineage data
 - container images for RepeatModeler/RepeatMasker, BRAKER, GALBA, and InterProScan
-- annotation inputs such as `ncbi_dataset.tsv`, protein FASTA, TSEBRA configs, and RNA BAMs for BRAKER3
+- annotation inputs such as `ncbi_dataset.tsv`, protein FASTA, TSEBRA configs, and per-sample RNA BAMs for BRAKER3
+
+Default BRAKER3 BAM layout:
+
+```text
+RNA_seq/bam_files/0337/*.bam
+RNA_seq/bam_files/0338/*.bam
+RNA_seq/bam_files/0339/*.bam
+RNA_seq/bam_files/0340/*.bam
+```
 
 ## Setup
 
@@ -88,6 +101,9 @@ Common settings:
 - `INTERPROSCAN_SIF`
 - `INTERPROSCAN_DATA_DIR`
 - Slurm account, partition, QoS, memory, and walltime
+- `ANNOTATION_SAMPLE_MODE=all`
+- `BRAKER3_BAM_GLOB_TEMPLATE`
+- `ENABLE_PREFLIGHT`
 
 ## Bootstrap
 
@@ -118,6 +134,7 @@ Preflight:
 
 ```bash
 bash scripts/check_pipeline_connections.sh config/pipeline.env
+bash scripts/hpc/bootstrap_dependencies.sh verify config/bootstrap.env
 ```
 
 Submit:
@@ -131,3 +148,11 @@ Smoke test:
 ```bash
 bash run_smoke_test.sh config/smoke_test.env
 ```
+
+Real SLURM toy test:
+
+```bash
+bash run_slurm_smoke_test.sh config/slurm_toy.env
+```
+
+The local smoke test runs mock stages directly. The SLURM toy test submits the same dependency chain with tiny resources and writes under `slurm_toy/`.

@@ -11,30 +11,32 @@ source "$SCRIPT_DIR/../scripts/lib/common.sh"
 source_config "$CONFIG_PATH"
 ensure_base_dirs
 
-sample_id="$ANNOTATION_SAMPLE_ID"
+sample_id="$(current_annotation_sample_id)"
 genome_fasta="$(annotation_simplified_genome "$sample_id")"
-manifest_file="$(annotation_isoform_root)/processed_models.tsv"
+manifest_file="$(annotation_isoform_root "$sample_id")/processed_models.tsv"
 
-ensure_dir "$(annotation_isoform_root)"
+ensure_dir "$(annotation_isoform_root "$sample_id")"
 printf 'model\tgtf\n' > "$manifest_file"
 
 declare -a model_names=()
 declare -a model_gtfs=()
 
 for predictor in galba braker2 braker3; do
-    gtf_path="$(annotation_predictor_gtf "$predictor")"
+    enable_var="$(predictor_enable_var "$predictor")"
+    truthy "${!enable_var:-0}" || continue
+    gtf_path="$(annotation_predictor_gtf "$predictor" "$sample_id")"
     if [[ -f "$gtf_path" ]]; then
         model_names+=("$predictor")
         model_gtfs+=("$gtf_path")
     fi
 done
 
-if [[ -d "$(annotation_tsebra_current_dir)" ]]; then
+if [[ -d "$(annotation_tsebra_current_dir "$sample_id")" ]]; then
     while IFS= read -r gtf_path; do
         config_name="$(basename "$(dirname "$gtf_path")")"
         model_names+=("$config_name")
         model_gtfs+=("$gtf_path")
-    done < <(find "$(annotation_tsebra_current_dir)" -type f -name 'tsebra_*.gtf' | sort)
+    done < <(find "$(annotation_tsebra_current_dir "$sample_id")" -type f -name 'tsebra_*.gtf' | sort)
 fi
 
 (( ${#model_names[@]} > 0 )) || die "No annotation GTF files were found for isoform filtering."
@@ -44,12 +46,12 @@ if smoke_mode; then
     for idx in "${!model_names[@]}"; do
         model_name="${model_names[$idx]}"
         input_gtf="${model_gtfs[$idx]}"
-        output_dir="$(annotation_isoform_dir "$model_name")"
-        output_gtf="$(annotation_isoform_gtf "$model_name")"
+        output_dir="$(annotation_isoform_dir "$model_name" "$sample_id")"
+        output_gtf="$(annotation_isoform_gtf "$model_name" "$sample_id")"
 
         ensure_dir "$output_dir"
         write_smoke_gtf "$output_gtf" "$(annotation_header_name_stem "$sample_id")1"
-        write_smoke_fasta "$(annotation_isoform_aa "$model_name")" "smoke_${model_name}" "MPEPTIDESEQ"
+        write_smoke_fasta "$(annotation_isoform_aa "$model_name" "$sample_id")" "smoke_${model_name}" "MPEPTIDESEQ"
         printf '%s\t%s\n' "$model_name" "$input_gtf" >> "$manifest_file"
     done
     exit 0
@@ -63,9 +65,9 @@ command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not
 for idx in "${!model_names[@]}"; do
     model_name="${model_names[$idx]}"
     input_gtf="${model_gtfs[$idx]}"
-    output_dir="$(annotation_isoform_dir "$model_name")"
-    output_gtf="$(annotation_isoform_gtf "$model_name")"
-    output_prefix="$(annotation_isoform_prefix "$model_name")"
+    output_dir="$(annotation_isoform_dir "$model_name" "$sample_id")"
+    output_gtf="$(annotation_isoform_gtf "$model_name" "$sample_id")"
+    output_prefix="$(annotation_isoform_prefix "$model_name" "$sample_id")"
 
     ensure_dir "$output_dir"
 
@@ -76,6 +78,6 @@ for idx in "${!model_names[@]}"; do
     "$SINGULARITY_BIN" exec -B "$PROJECT_ROOT:$PROJECT_ROOT" "$BRAKER_SIF" \
         getAnnoFastaFromJoingenes.py -g "$genome_fasta" -o "$output_prefix" -f "$output_gtf"
 
-    [[ -f "$(annotation_isoform_aa "$model_name")" ]] || die "Isoform-filtered protein FASTA was not created: $(annotation_isoform_aa "$model_name")"
+    [[ -f "$(annotation_isoform_aa "$model_name" "$sample_id")" ]] || die "Isoform-filtered protein FASTA was not created: $(annotation_isoform_aa "$model_name" "$sample_id")"
     printf '%s\t%s\n' "$model_name" "$input_gtf" >> "$manifest_file"
 done

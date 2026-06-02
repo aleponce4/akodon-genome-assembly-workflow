@@ -11,11 +11,11 @@ source "$SCRIPT_DIR/../scripts/lib/common.sh"
 source_config "$CONFIG_PATH"
 ensure_base_dirs
 
-sample_id="$ANNOTATION_SAMPLE_ID"
+sample_id="$(current_annotation_sample_id)"
 input_fasta="$(annotation_masked_genome "$sample_id")"
 output_fasta="$(annotation_simplified_genome "$sample_id")"
 header_map="$(annotation_header_map "$sample_id")"
-name_stem="$ANNOTATION_HEADER_NAME_STEM"
+name_stem="$(annotation_header_name_stem "$sample_id")"
 
 if smoke_mode; then
     log "Smoke mode: creating mock simplified annotation genome and header map"

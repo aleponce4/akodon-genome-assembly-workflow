@@ -11,14 +11,16 @@ source "$SCRIPT_DIR/../scripts/lib/common.sh"
 source_config "$CONFIG_PATH"
 ensure_base_dirs
 
-sample_id="$ANNOTATION_SAMPLE_ID"
+sample_id="$(current_annotation_sample_id)"
 header_map="$(annotation_header_map "$sample_id")"
 input_genome="$(annotation_simplified_genome "$sample_id")"
 output_genome="$(annotation_restored_genome "$sample_id")"
-manifest_file="$ANNOTATION_ORIGINAL_HEADERS_DIR/restored_files.tsv"
+restore_dir="$(annotation_original_headers_dir "$sample_id")"
+manifest_file="$restore_dir/restored_files.tsv"
 
 [[ -f "$header_map" ]] || die "Annotation header map not found: $header_map"
 [[ -f "$input_genome" ]] || die "Simplified annotation genome not found: $input_genome"
+ensure_dir "$restore_dir"
 
 awk -F '\t' '
     NR == FNR {
@@ -48,7 +50,7 @@ printf 'genome\t%s\t%s\n' "$input_genome" "$output_genome" >> "$manifest_file"
 restore_gtf() {
     local label="$1"
     local input_gtf="$2"
-    local output_gtf="$ANNOTATION_ORIGINAL_HEADERS_DIR/${label}_original_headers.gtf"
+    local output_gtf="$restore_dir/${label}_original_headers.gtf"
 
     [[ -f "$input_gtf" ]] || return 0
     awk -F '\t' -v OFS='\t' '
@@ -72,19 +74,21 @@ restore_gtf() {
 }
 
 for predictor in galba braker2 braker3; do
-    restore_gtf "$predictor" "$(annotation_predictor_gtf "$predictor")"
+    enable_var="$(predictor_enable_var "$predictor")"
+    truthy "${!enable_var:-0}" || continue
+    restore_gtf "$predictor" "$(annotation_predictor_gtf "$predictor" "$sample_id")"
 done
 
-if [[ -d "$(annotation_tsebra_current_dir)" ]]; then
+if [[ -d "$(annotation_tsebra_current_dir "$sample_id")" ]]; then
     while IFS= read -r gtf_path; do
         config_name="$(basename "$(dirname "$gtf_path")")"
         restore_gtf "$config_name" "$gtf_path"
-    done < <(find "$(annotation_tsebra_current_dir)" -type f -name 'tsebra_*.gtf' | sort)
+    done < <(find "$(annotation_tsebra_current_dir "$sample_id")" -type f -name 'tsebra_*.gtf' | sort)
 fi
 
-if [[ -d "$(annotation_isoform_root)" ]]; then
+if [[ -d "$(annotation_isoform_root "$sample_id")" ]]; then
     while IFS= read -r gtf_path; do
         model_name="$(basename "$(dirname "$gtf_path")")"
         restore_gtf "${model_name}_longest_isoform" "$gtf_path"
-    done < <(find "$(annotation_isoform_root)" -type f -name '*_longest_isoform.gtf' | sort)
+    done < <(find "$(annotation_isoform_root "$sample_id")" -type f -name '*_longest_isoform.gtf' | sort)
 fi

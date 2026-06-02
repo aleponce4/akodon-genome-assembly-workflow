@@ -5,6 +5,7 @@ output/
 .conda/
 bootstrap/
 smoke_test/
+slurm_toy/
 augustus_config/
 data/
 RNA_seq/bam_files/

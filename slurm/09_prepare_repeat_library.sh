@@ -44,6 +44,11 @@ stats_file="$REPEAT_LIBRARY_DIR/repeat_library_stats.tsv"
 
 if smoke_mode; then
     log "Smoke mode: creating mock repeat libraries"
+    sample_total="$(sample_count)"
+    for ((idx = 0; idx < sample_total; idx++)); do
+        sample_id="$(sample_id_by_index "$idx")"
+        write_smoke_fasta "$(repeatmodeler_export_fasta "$sample_id")" "$(assembly_stem "$sample_id")_repeat1#DNA" "ATGCGTATGCGTATGCGTATGCGTATGCGT"
+    done
     write_smoke_fasta "$merged_repeats" "repeat_known#DNA" "ATGCGTATGCGTATGCGTATGCGTATGCGT"
     cat "$merged_repeats" > "$non_redundant_repeats"
     write_smoke_fasta "$known_repeats" "repeat_known#DNA" "ATGCGTATGCGTATGCGTATGCGTATGCGT"
