@@ -547,7 +547,7 @@ load_module_support() {
 load_anaconda() {
     if [[ -n "${ANACONDA_MODULE:-}" ]]; then
         load_module_support || die "The module command is not available, but ANACONDA_MODULE is set."
-        module load "$ANACONDA_MODULE"
+        module load "$ANACONDA_MODULE" >/dev/null
     fi
 
     if [[ -n "${ANACONDA_SH:-}" && -f "${ANACONDA_SH:-}" ]]; then
@@ -581,7 +581,7 @@ load_module_if_available() {
     local module_name="$1"
     [[ -n "$module_name" ]] || return 0
     load_module_support || die "The module command is not available, but a module was requested: $module_name"
-    module load "$module_name"
+    module load "$module_name" >/dev/null
 }
 
 activate_quast_env() {
