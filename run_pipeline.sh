@@ -14,20 +14,48 @@ ensure_base_dirs
 
 command -v sbatch >/dev/null 2>&1 || die "sbatch was not found on PATH."
 
-submit_stage() {
-    local dependency="$1"
-    shift
+PIPELINE_START_STAGE="${PIPELINE_START_STAGE:-00}"
+PIPELINE_END_STAGE="${PIPELINE_END_STAGE:-20}"
+PIPELINE_DEPENDENCY_JOB_ID="${PIPELINE_DEPENDENCY_JOB_ID:-}"
 
-    local -a sbatch_args=(
-        --parsable
-        --account="$SBATCH_ACCOUNT"
-    )
+normalize_stage() {
+    local stage="$1"
+    [[ "$stage" =~ ^[0-9]{1,2}$ ]] || die "Invalid stage value: $stage"
+    printf '%02d' "$((10#$stage))"
+}
 
-    if [[ -n "$dependency" ]]; then
-        sbatch_args+=(--dependency="afterok:$dependency")
-    fi
+stage_number() {
+    printf '%d' "$((10#$1))"
+}
 
-    sbatch "${sbatch_args[@]}" "$@"
+PIPELINE_START_STAGE="$(normalize_stage "$PIPELINE_START_STAGE")"
+PIPELINE_END_STAGE="$(normalize_stage "$PIPELINE_END_STAGE")"
+(( $(stage_number "$PIPELINE_START_STAGE") <= $(stage_number "$PIPELINE_END_STAGE") )) || \
+    die "PIPELINE_START_STAGE must be <= PIPELINE_END_STAGE."
+
+submission_timestamp="$(date '+%Y%m%d_%H%M%S')"
+submission_dir="$LOG_DIR/submissions"
+ensure_dir "$submission_dir"
+submission_manifest="$submission_dir/run_${submission_timestamp}_jobs.tsv"
+config_snapshot="$submission_dir/run_${submission_timestamp}_config.env"
+
+cp "$CONFIG_PATH" "$config_snapshot"
+{
+    printf '\n# Runtime resume controls captured at submission time\n'
+    printf 'PIPELINE_START_STAGE=%q\n' "$PIPELINE_START_STAGE"
+    printf 'PIPELINE_END_STAGE=%q\n' "$PIPELINE_END_STAGE"
+    printf 'PIPELINE_DEPENDENCY_JOB_ID=%q\n' "$PIPELINE_DEPENDENCY_JOB_ID"
+} >> "$config_snapshot"
+
+printf 'stage_id\tstage_name\tjob_id\tdependency\tarray\tstdout\tstderr\tscript\n' > "$submission_manifest"
+
+stage_in_range() {
+    local stage="$1"
+    local stage_n start_n end_n
+    stage_n="$(stage_number "$stage")"
+    start_n="$(stage_number "$PIPELINE_START_STAGE")"
+    end_n="$(stage_number "$PIPELINE_END_STAGE")"
+    (( stage_n >= start_n && stage_n <= end_n ))
 }
 
 join_dependencies() {
@@ -53,6 +81,47 @@ array_spec() {
     fi
 }
 
+manifest_has_jobs() {
+    awk 'NR > 1 { found = 1 } END { exit(found ? 0 : 1) }' "$submission_manifest"
+}
+
+submit_stage() {
+    local stage_id="$1"
+    local stage_name="$2"
+    local dependency="$3"
+    local array_value="$4"
+    local stdout_path="$5"
+    local stderr_path="$6"
+    local script_path="$7"
+    shift 7
+
+    stage_id="$(normalize_stage "$stage_id")"
+    stage_in_range "$stage_id" || return 0
+
+    if [[ -z "$dependency" && -n "$PIPELINE_DEPENDENCY_JOB_ID" ]] && ! manifest_has_jobs; then
+        dependency="$PIPELINE_DEPENDENCY_JOB_ID"
+    fi
+
+    local -a sbatch_args=(--parsable --account="$SBATCH_ACCOUNT")
+    if [[ -n "$dependency" ]]; then
+        sbatch_args+=(--dependency="afterok:$dependency")
+    fi
+
+    local job_id
+    job_id="$(sbatch "${sbatch_args[@]}" "$@")"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$stage_id" "$stage_name" "$job_id" "$dependency" "$array_value" "$stdout_path" "$stderr_path" "$script_path" \
+        >> "$submission_manifest"
+    printf '%s' "$job_id"
+}
+
+print_job() {
+    local label="$1"
+    local job_id="${2:-}"
+    [[ -n "$job_id" ]] || return 0
+    printf '  %-18s %s\n' "$label:" "$job_id"
+}
+
 array_bounds="$(sample_array_bounds)"
 annotation_array_bounds="$(annotation_sample_array_bounds)"
 supernova_array="$(array_spec "$array_bounds" "$SUPERNOVA_ARRAY_CONCURRENCY")"
@@ -66,7 +135,7 @@ annotation_array="$(array_spec "$annotation_array_bounds" "$ANNOTATION_ARRAY_CON
 workflow_start_dependency=""
 
 if truthy "$ENABLE_PREFLIGHT"; then
-    preflight_job_id="$(submit_stage "" \
+    preflight_job_id="$(submit_stage 00 preflight "" "" "$LOG_DIR/preflight_%j.out" "$LOG_DIR/preflight_%j.err" "$SCRIPT_DIR/slurm/00_tool_preflight.sh" \
         --job-name=akodon_preflight \
         --partition="$PREFLIGHT_PARTITION" \
         --qos="$PREFLIGHT_QOS" \
@@ -95,9 +164,10 @@ if [[ -n "$SUPERNOVA_NODELIST" ]]; then
     supernova_args+=(--nodelist="$SUPERNOVA_NODELIST")
 fi
 
-supernova_job_id="$(submit_stage "$workflow_start_dependency" "${supernova_args[@]}" "$SCRIPT_DIR/slurm/01_supernova_array.sh" "$CONFIG_PATH")"
+supernova_job_id="$(submit_stage 01 supernova "$workflow_start_dependency" "$supernova_array" "$LOG_DIR/supernova_%A_%a.out" "$LOG_DIR/supernova_%A_%a.err" "$SCRIPT_DIR/slurm/01_supernova_array.sh" \
+    "${supernova_args[@]}" "$SCRIPT_DIR/slurm/01_supernova_array.sh" "$CONFIG_PATH")"
 
-mkoutput_job_id="$(submit_stage "$supernova_job_id" \
+mkoutput_job_id="$(submit_stage 02 mkoutput "$supernova_job_id" "$mkoutput_array" "$LOG_DIR/mkoutput_%A_%a.out" "$LOG_DIR/mkoutput_%A_%a.err" "$SCRIPT_DIR/slurm/02_mkoutput_array.sh" \
     --job-name=akodon_mkoutput \
     --partition="$MKOUTPUT_PARTITION" \
     --qos="$MKOUTPUT_QOS" \
@@ -109,7 +179,7 @@ mkoutput_job_id="$(submit_stage "$supernova_job_id" \
     --error="$LOG_DIR/mkoutput_%A_%a.err" \
     "$SCRIPT_DIR/slurm/02_mkoutput_array.sh" "$CONFIG_PATH")"
 
-filter_job_id="$(submit_stage "$mkoutput_job_id" \
+filter_job_id="$(submit_stage 03 filter "$mkoutput_job_id" "$filter_array" "$LOG_DIR/filter_%A_%a.out" "$LOG_DIR/filter_%A_%a.err" "$SCRIPT_DIR/slurm/03_filter_fasta_array.sh" \
     --job-name=akodon_filter \
     --partition="$FILTER_PARTITION" \
     --qos="$FILTER_QOS" \
@@ -121,7 +191,7 @@ filter_job_id="$(submit_stage "$mkoutput_job_id" \
     --error="$LOG_DIR/filter_%A_%a.err" \
     "$SCRIPT_DIR/slurm/03_filter_fasta_array.sh" "$CONFIG_PATH")"
 
-quast_job_id="$(submit_stage "$filter_job_id" \
+quast_job_id="$(submit_stage 04 quast "$filter_job_id" "" "$LOG_DIR/quast_%j.out" "$LOG_DIR/quast_%j.err" "$SCRIPT_DIR/slurm/04_quast.sh" \
     --job-name=akodon_quast \
     --partition="$QUAST_PARTITION" \
     --qos="$QUAST_QOS" \
@@ -132,7 +202,7 @@ quast_job_id="$(submit_stage "$filter_job_id" \
     --error="$LOG_DIR/quast_%j.err" \
     "$SCRIPT_DIR/slurm/04_quast.sh" "$CONFIG_PATH")"
 
-busco_job_id="$(submit_stage "$filter_job_id" \
+busco_job_id="$(submit_stage 05 busco "$filter_job_id" "$busco_array" "$LOG_DIR/busco_%A_%a.out" "$LOG_DIR/busco_%A_%a.err" "$SCRIPT_DIR/slurm/05_busco_array.sh" \
     --job-name=akodon_busco \
     --partition="$BUSCO_PARTITION" \
     --qos="$BUSCO_QOS" \
@@ -144,7 +214,7 @@ busco_job_id="$(submit_stage "$filter_job_id" \
     --error="$LOG_DIR/busco_%A_%a.err" \
     "$SCRIPT_DIR/slurm/05_busco_array.sh" "$CONFIG_PATH")"
 
-repeatmodeler_job_id="$(submit_stage "$filter_job_id" \
+repeatmodeler_job_id="$(submit_stage 08 repeatmodeler "$filter_job_id" "$repeatmodeler_array" "$LOG_DIR/repeatmodeler_%A_%a.out" "$LOG_DIR/repeatmodeler_%A_%a.err" "$SCRIPT_DIR/slurm/08_repeatmodeler_array.sh" \
     --job-name=akodon_repeatmodeler \
     --partition="$REPEATMODELER_PARTITION" \
     --qos="$REPEATMODELER_QOS" \
@@ -156,7 +226,7 @@ repeatmodeler_job_id="$(submit_stage "$filter_job_id" \
     --error="$LOG_DIR/repeatmodeler_%A_%a.err" \
     "$SCRIPT_DIR/slurm/08_repeatmodeler_array.sh" "$CONFIG_PATH")"
 
-repeat_library_job_id="$(submit_stage "$repeatmodeler_job_id" \
+repeat_library_job_id="$(submit_stage 09 repeat_library "$repeatmodeler_job_id" "" "$LOG_DIR/repeat_library_%j.out" "$LOG_DIR/repeat_library_%j.err" "$SCRIPT_DIR/slurm/09_prepare_repeat_library.sh" \
     --job-name=akodon_repeat_library \
     --partition="$REPEAT_LIBRARY_PARTITION" \
     --qos="$REPEAT_LIBRARY_QOS" \
@@ -167,7 +237,7 @@ repeat_library_job_id="$(submit_stage "$repeatmodeler_job_id" \
     --error="$LOG_DIR/repeat_library_%j.err" \
     "$SCRIPT_DIR/slurm/09_prepare_repeat_library.sh" "$CONFIG_PATH")"
 
-repeatmasker_job_id="$(submit_stage "$repeat_library_job_id" \
+repeatmasker_job_id="$(submit_stage 10 repeatmasker "$repeat_library_job_id" "$repeatmasker_array" "$LOG_DIR/repeatmasker_%A_%a.out" "$LOG_DIR/repeatmasker_%A_%a.err" "$SCRIPT_DIR/slurm/10_repeatmasker_array.sh" \
     --job-name=akodon_repeatmasker \
     --partition="$REPEATMASKER_PARTITION" \
     --qos="$REPEATMASKER_QOS" \
@@ -180,7 +250,7 @@ repeatmasker_job_id="$(submit_stage "$repeat_library_job_id" \
     "$SCRIPT_DIR/slurm/10_repeatmasker_array.sh" "$CONFIG_PATH")"
 
 if truthy "$ENABLE_BUSCO_PLOT"; then
-    busco_plot_job_id="$(submit_stage "$busco_job_id" \
+    busco_plot_job_id="$(submit_stage 06 busco_plot "$busco_job_id" "" "$LOG_DIR/busco_plot_%j.out" "$LOG_DIR/busco_plot_%j.err" "$SCRIPT_DIR/slurm/06_busco_plot.sh" \
         --job-name=akodon_busco_plot \
         --partition="$BUSCO_PLOT_PARTITION" \
         --qos="$BUSCO_PLOT_QOS" \
@@ -192,8 +262,8 @@ if truthy "$ENABLE_BUSCO_PLOT"; then
         "$SCRIPT_DIR/slurm/06_busco_plot.sh" "$CONFIG_PATH")"
 fi
 
-multiqc_dependency="$quast_job_id:$busco_job_id"
-multiqc_job_id="$(submit_stage "$multiqc_dependency" \
+multiqc_dependency="$(join_dependencies "$quast_job_id" "$busco_job_id")"
+multiqc_job_id="$(submit_stage 07 multiqc "$multiqc_dependency" "" "$LOG_DIR/multiqc_%j.out" "$LOG_DIR/multiqc_%j.err" "$SCRIPT_DIR/slurm/07_multiqc.sh" \
     --job-name=akodon_multiqc \
     --partition="$MULTIQC_PARTITION" \
     --qos="$MULTIQC_QOS" \
@@ -205,7 +275,7 @@ multiqc_job_id="$(submit_stage "$multiqc_dependency" \
     "$SCRIPT_DIR/slurm/07_multiqc.sh" "$CONFIG_PATH")"
 
 if truthy "$ENABLE_ANNOTATION"; then
-    if truthy "$ENABLE_TSEBRA"; then
+    if truthy "$ENABLE_TSEBRA" && stage_in_range 17; then
         is_supported_tsebra_source "$TSEBRA_GTF1_SOURCE" || die "Unsupported TSEBRA_GTF1_SOURCE: $TSEBRA_GTF1_SOURCE"
         is_supported_tsebra_source "$TSEBRA_GTF2_SOURCE" || die "Unsupported TSEBRA_GTF2_SOURCE: $TSEBRA_GTF2_SOURCE"
         [[ "$TSEBRA_GTF1_SOURCE" != "$TSEBRA_GTF2_SOURCE" ]] || die "TSEBRA_GTF1_SOURCE and TSEBRA_GTF2_SOURCE must be different."
@@ -216,11 +286,11 @@ if truthy "$ENABLE_ANNOTATION"; then
         truthy "${!tsebra_gtf2_enable_var:-0}" || die "ENABLE_TSEBRA=1 requires ${tsebra_gtf2_enable_var}=1 for TSEBRA_GTF2_SOURCE=$TSEBRA_GTF2_SOURCE."
     fi
 
-    if truthy "$ENABLE_INTERPROSCAN" && ! truthy "$ENABLE_ISOFORM_FILTER" && [[ -z "$INTERPROSCAN_INPUT_FASTA" ]]; then
+    if truthy "$ENABLE_INTERPROSCAN" && stage_in_range 20 && ! truthy "$ENABLE_ISOFORM_FILTER" && [[ -z "$INTERPROSCAN_INPUT_FASTA" ]]; then
         die "ENABLE_INTERPROSCAN=1 without ENABLE_ISOFORM_FILTER requires INTERPROSCAN_INPUT_FASTA to be set."
     fi
 
-    annotation_preprocess_job_id="$(submit_stage "$repeatmasker_job_id" \
+    annotation_preprocess_job_id="$(submit_stage 11 annotation_preprocess "$repeatmasker_job_id" "$annotation_array" "$LOG_DIR/annotation_preprocess_%A_%a.out" "$LOG_DIR/annotation_preprocess_%A_%a.err" "$SCRIPT_DIR/slurm/11_annotation_preprocess_genome.sh" \
         --job-name=akodon_annotation_preprocess \
         --partition="$ANNOTATION_PREPROCESS_PARTITION" \
         --qos="$ANNOTATION_PREPROCESS_QOS" \
@@ -233,7 +303,7 @@ if truthy "$ENABLE_ANNOTATION"; then
         "$SCRIPT_DIR/slurm/11_annotation_preprocess_genome.sh" "$CONFIG_PATH")"
 
     if truthy "$ENABLE_ANNOTATION_PROTEIN_DOWNLOAD"; then
-        annotation_download_job_id="$(submit_stage "$repeatmasker_job_id" \
+        annotation_download_job_id="$(submit_stage 12 annotation_download "$repeatmasker_job_id" "" "$LOG_DIR/annotation_download_%j.out" "$LOG_DIR/annotation_download_%j.err" "$SCRIPT_DIR/slurm/12_annotation_download_proteins.sh" \
             --job-name=akodon_annotation_download \
             --partition="$ANNOTATION_DOWNLOAD_PARTITION" \
             --qos="$ANNOTATION_DOWNLOAD_QOS" \
@@ -247,7 +317,7 @@ if truthy "$ENABLE_ANNOTATION"; then
 
     if truthy "$ENABLE_ANNOTATION_PROTEIN_PREPROCESS"; then
         protein_prep_dependency="$(join_dependencies "${annotation_download_job_id:-}" "$repeatmasker_job_id")"
-        annotation_protein_prep_job_id="$(submit_stage "$protein_prep_dependency" \
+        annotation_protein_prep_job_id="$(submit_stage 13 annotation_protein_prep "$protein_prep_dependency" "" "$LOG_DIR/annotation_protein_prep_%j.out" "$LOG_DIR/annotation_protein_prep_%j.err" "$SCRIPT_DIR/slurm/13_annotation_prepare_proteins.sh" \
             --job-name=akodon_annotation_protein_prep \
             --partition="$ANNOTATION_PROTEIN_PREP_PARTITION" \
             --qos="$ANNOTATION_PROTEIN_PREP_QOS" \
@@ -261,7 +331,7 @@ if truthy "$ENABLE_ANNOTATION"; then
 
     galba_dependency="$(join_dependencies "$annotation_preprocess_job_id" "${annotation_protein_prep_job_id:-}")"
     if truthy "$ENABLE_GALBA"; then
-        galba_job_id="$(submit_stage "$galba_dependency" \
+        galba_job_id="$(submit_stage 14 galba "$galba_dependency" "$annotation_array" "$LOG_DIR/galba_%A_%a.out" "$LOG_DIR/galba_%A_%a.err" "$SCRIPT_DIR/slurm/14_galba.sh" \
             --job-name=akodon_galba \
             --partition="$GALBA_PARTITION" \
             --qos="$GALBA_QOS" \
@@ -276,7 +346,7 @@ if truthy "$ENABLE_ANNOTATION"; then
 
     braker2_dependency="$(join_dependencies "$annotation_preprocess_job_id" "${annotation_protein_prep_job_id:-}")"
     if truthy "$ENABLE_BRAKER2"; then
-        braker2_job_id="$(submit_stage "$braker2_dependency" \
+        braker2_job_id="$(submit_stage 15 braker2 "$braker2_dependency" "$annotation_array" "$LOG_DIR/braker2_%A_%a.out" "$LOG_DIR/braker2_%A_%a.err" "$SCRIPT_DIR/slurm/15_braker2.sh" \
             --job-name=akodon_braker2 \
             --partition="$BRAKER2_PARTITION" \
             --qos="$BRAKER2_QOS" \
@@ -290,7 +360,7 @@ if truthy "$ENABLE_ANNOTATION"; then
     fi
 
     if truthy "$ENABLE_BRAKER3"; then
-        braker3_job_id="$(submit_stage "$annotation_preprocess_job_id" \
+        braker3_job_id="$(submit_stage 16 braker3 "$annotation_preprocess_job_id" "$annotation_array" "$LOG_DIR/braker3_%A_%a.out" "$LOG_DIR/braker3_%A_%a.err" "$SCRIPT_DIR/slurm/16_braker3.sh" \
             --job-name=akodon_braker3 \
             --partition="$BRAKER3_PARTITION" \
             --qos="$BRAKER3_QOS" \
@@ -305,7 +375,7 @@ if truthy "$ENABLE_ANNOTATION"; then
 
     if truthy "$ENABLE_TSEBRA"; then
         tsebra_dependency="$(join_dependencies "${galba_job_id:-}" "${braker2_job_id:-}" "${braker3_job_id:-}")"
-        tsebra_job_id="$(submit_stage "$tsebra_dependency" \
+        tsebra_job_id="$(submit_stage 17 tsebra "$tsebra_dependency" "$annotation_array" "$LOG_DIR/tsebra_%A_%a.out" "$LOG_DIR/tsebra_%A_%a.err" "$SCRIPT_DIR/slurm/17_tsebra.sh" \
             --job-name=akodon_tsebra \
             --partition="$TSEBRA_PARTITION" \
             --qos="$TSEBRA_QOS" \
@@ -320,7 +390,7 @@ if truthy "$ENABLE_ANNOTATION"; then
 
     if truthy "$ENABLE_ISOFORM_FILTER"; then
         isoform_dependency="$(join_dependencies "${galba_job_id:-}" "${braker2_job_id:-}" "${braker3_job_id:-}" "${tsebra_job_id:-}")"
-        isoform_job_id="$(submit_stage "$isoform_dependency" \
+        isoform_job_id="$(submit_stage 18 isoform_filter "$isoform_dependency" "$annotation_array" "$LOG_DIR/isoform_filter_%A_%a.out" "$LOG_DIR/isoform_filter_%A_%a.err" "$SCRIPT_DIR/slurm/18_isoform_filter.sh" \
             --job-name=akodon_isoform_filter \
             --partition="$ISOFORM_PARTITION" \
             --qos="$ISOFORM_QOS" \
@@ -335,7 +405,7 @@ if truthy "$ENABLE_ANNOTATION"; then
 
     if truthy "$ENABLE_REASSIGN_HEADERS"; then
         restore_dependency="$(join_dependencies "$annotation_preprocess_job_id" "${galba_job_id:-}" "${braker2_job_id:-}" "${braker3_job_id:-}" "${tsebra_job_id:-}" "${isoform_job_id:-}")"
-        restore_headers_job_id="$(submit_stage "$restore_dependency" \
+        restore_headers_job_id="$(submit_stage 19 restore_headers "$restore_dependency" "$annotation_array" "$LOG_DIR/restore_headers_%A_%a.out" "$LOG_DIR/restore_headers_%A_%a.err" "$SCRIPT_DIR/slurm/19_restore_headers.sh" \
             --job-name=akodon_restore_headers \
             --partition="$REASSIGN_PARTITION" \
             --qos="$REASSIGN_QOS" \
@@ -350,7 +420,7 @@ if truthy "$ENABLE_ANNOTATION"; then
 
     if truthy "$ENABLE_INTERPROSCAN"; then
         interproscan_dependency="$(join_dependencies "${isoform_job_id:-}" "${tsebra_job_id:-}" "${galba_job_id:-}" "${braker2_job_id:-}" "${braker3_job_id:-}")"
-        interproscan_job_id="$(submit_stage "$interproscan_dependency" \
+        interproscan_job_id="$(submit_stage 20 interproscan "$interproscan_dependency" "$annotation_array" "$LOG_DIR/interproscan_%A_%a.out" "$LOG_DIR/interproscan_%A_%a.err" "$SCRIPT_DIR/slurm/20_interproscan.sh" \
             --job-name=akodon_interproscan \
             --partition="$INTERPROSCAN_PARTITION" \
             --qos="$INTERPROSCAN_QOS" \
@@ -364,60 +434,30 @@ if truthy "$ENABLE_ANNOTATION"; then
     fi
 fi
 
+manifest_has_jobs || die "No stages were submitted for range ${PIPELINE_START_STAGE}-${PIPELINE_END_STAGE}."
+
 printf 'Submitted workflow with these job IDs:\n'
-if [[ -n "${preflight_job_id:-}" ]]; then
-    printf '  Preflight:          %s\n' "$preflight_job_id"
-fi
-printf '  Supernova:          %s\n' "$supernova_job_id"
-printf '  mkoutput:           %s\n' "$mkoutput_job_id"
-printf '  Filter FASTA:       %s\n' "$filter_job_id"
-printf '  QUAST:              %s\n' "$quast_job_id"
-printf '  BUSCO:              %s\n' "$busco_job_id"
-printf '  MultiQC:            %s\n' "$multiqc_job_id"
-printf '  RepeatModeler:      %s\n' "$repeatmodeler_job_id"
-printf '  Repeat library:     %s\n' "$repeat_library_job_id"
-printf '  RepeatMasker:       %s\n' "$repeatmasker_job_id"
+print_job "Preflight" "${preflight_job_id:-}"
+print_job "Supernova" "${supernova_job_id:-}"
+print_job "mkoutput" "${mkoutput_job_id:-}"
+print_job "Filter FASTA" "${filter_job_id:-}"
+print_job "QUAST" "${quast_job_id:-}"
+print_job "BUSCO" "${busco_job_id:-}"
+print_job "BUSCO plot" "${busco_plot_job_id:-}"
+print_job "MultiQC" "${multiqc_job_id:-}"
+print_job "RepeatModeler" "${repeatmodeler_job_id:-}"
+print_job "Repeat library" "${repeat_library_job_id:-}"
+print_job "RepeatMasker" "${repeatmasker_job_id:-}"
+print_job "Annotation prep" "${annotation_preprocess_job_id:-}"
+print_job "Protein download" "${annotation_download_job_id:-}"
+print_job "Protein prep" "${annotation_protein_prep_job_id:-}"
+print_job "GALBA" "${galba_job_id:-}"
+print_job "BRAKER2" "${braker2_job_id:-}"
+print_job "BRAKER3" "${braker3_job_id:-}"
+print_job "TSEBRA" "${tsebra_job_id:-}"
+print_job "Isoform filter" "${isoform_job_id:-}"
+print_job "Restore headers" "${restore_headers_job_id:-}"
+print_job "InterProScan" "${interproscan_job_id:-}"
 
-if [[ -n "${busco_plot_job_id:-}" ]]; then
-    printf '  BUSCO plot:         %s\n' "$busco_plot_job_id"
-fi
-
-if truthy "$ENABLE_ANNOTATION"; then
-    printf '  Annotation prep:    %s\n' "$annotation_preprocess_job_id"
-
-    if [[ -n "${annotation_download_job_id:-}" ]]; then
-        printf '  Protein download:   %s\n' "$annotation_download_job_id"
-    fi
-
-    if [[ -n "${annotation_protein_prep_job_id:-}" ]]; then
-        printf '  Protein prep:       %s\n' "$annotation_protein_prep_job_id"
-    fi
-
-    if [[ -n "${galba_job_id:-}" ]]; then
-        printf '  GALBA:              %s\n' "$galba_job_id"
-    fi
-
-    if [[ -n "${braker2_job_id:-}" ]]; then
-        printf '  BRAKER2:            %s\n' "$braker2_job_id"
-    fi
-
-    if [[ -n "${braker3_job_id:-}" ]]; then
-        printf '  BRAKER3:            %s\n' "$braker3_job_id"
-    fi
-
-    if [[ -n "${tsebra_job_id:-}" ]]; then
-        printf '  TSEBRA:             %s\n' "$tsebra_job_id"
-    fi
-
-    if [[ -n "${isoform_job_id:-}" ]]; then
-        printf '  Isoform filter:     %s\n' "$isoform_job_id"
-    fi
-
-    if [[ -n "${restore_headers_job_id:-}" ]]; then
-        printf '  Restore headers:    %s\n' "$restore_headers_job_id"
-    fi
-
-    if [[ -n "${interproscan_job_id:-}" ]]; then
-        printf '  InterProScan:       %s\n' "$interproscan_job_id"
-    fi
-fi
+printf '\nSubmission manifest: %s\n' "$submission_manifest"
+printf 'Config snapshot:      %s\n' "$config_snapshot"
