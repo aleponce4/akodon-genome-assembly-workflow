@@ -47,6 +47,25 @@ report_command() {
     printf '    %-24s %s\n' "$label [$status]" "$resolved"
 }
 
+report_command_or_path() {
+    local label="$1"
+    local preferred_path="$2"
+    local command_name="$3"
+    local status="MISSING"
+    local resolved=""
+
+    if [[ -n "$preferred_path" && -x "$preferred_path" ]]; then
+        status="OK"
+        resolved="$preferred_path"
+    elif resolved="$(resolve_command_path "$command_name")"; then
+        status="OK"
+    else
+        resolved="${preferred_path:-$command_name}"
+    fi
+
+    printf '    %-24s %s\n' "$label [$status]" "$resolved"
+}
+
 report_glob() {
     local label="$1"
     local pattern="$2"
@@ -87,8 +106,8 @@ printf 'Shared resources\n'
 report_path "Samples table" "$SAMPLES_TSV" file
 report_path "FASTQ directory" "$DATA_DIR" dir
 report_path "Supernova binary" "$SUPERNOVA_BIN" file
-report_command "QUAST binary" "$QUAST_BIN"
-report_command "BUSCO plot script" "$BUSCO_PLOT_SCRIPT"
+report_command_or_path "QUAST binary" "${QUAST_ENV_PREFIX:-}/bin/quast.py" "$QUAST_BIN"
+report_command_or_path "BUSCO plot script" "${BUSCO_ENV_PREFIX:-}/bin/generate_plot.py" "$BUSCO_PLOT_SCRIPT"
 report_path "BUSCO lineage" "$BUSCO_LINEAGE_DIR" dir
 report_path "RepeatModeler image" "$REPEATMODELER_IMAGE" file
 report_path "BRAKER image" "$BRAKER_SIF" file
