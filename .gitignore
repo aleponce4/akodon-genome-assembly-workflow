@@ -9,6 +9,7 @@ slurm_toy/
 augustus_config/
 data/
 RNA_seq/00_fastq/
+RNA_seq/trimmed_data/
 RNA_seq/bam_files/
 RNA_seq/genome_index/
 RNA_seq/log_files/

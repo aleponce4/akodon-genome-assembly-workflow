@@ -40,6 +40,7 @@ Notes:
 - annotation runs for all samples by default, with sample-specific output folders
 - the annotation branch starts after RepeatMasker
 - Supernova should use raw, untrimmed 10x linked-read FASTQs
+- BRAKER3 RNA evidence uses the existing fastp-trimmed RNA-seq FASTQs by default
 - BRAKER3 BAMs must be aligned to the same simplified assembly headers used for that sample
 
 Still to do:
@@ -80,17 +81,17 @@ Still to do:
 - sample table in `config/samples.tsv`
 - BUSCO lineage data
 - container images for RepeatModeler/RepeatMasker, BRAKER, GALBA, and InterProScan
-- RNA-seq FASTQs in `RNA_seq/00_fastq/` for BRAKER3 evidence generation
+- trimmed RNA-seq FASTQs in `RNA_seq/trimmed_data/` for BRAKER3 evidence generation
 - annotation inputs such as `ncbi_dataset.tsv`, protein FASTA, TSEBRA configs, and optional precomputed per-sample RNA BAMs for BRAKER3
 
 Default RNA-seq FASTQ layout:
 
 ```text
-RNA_seq/00_fastq/A1_R1_001.fastq.gz
-RNA_seq/00_fastq/A1_R2_001.fastq.gz
+RNA_seq/trimmed_data/A1_R1_trimmed.fastq.gz
+RNA_seq/trimmed_data/A1_R2_trimmed.fastq.gz
 ...
-RNA_seq/00_fastq/B5_R1_001.fastq.gz
-RNA_seq/00_fastq/B5_R2_001.fastq.gz
+RNA_seq/trimmed_data/B5_R1_trimmed.fastq.gz
+RNA_seq/trimmed_data/B5_R2_trimmed.fastq.gz
 ```
 
 Default BRAKER3 BAM layout:
@@ -154,6 +155,7 @@ Common settings:
 - `ENABLE_RNA_ALIGNMENT`
 - `RNA_ALIGN_FASTQ_DIR`
 - `RNA_ALIGN_LIBRARY_IDS`
+- `RNA_ALIGN_R1_SUFFIX` / `RNA_ALIGN_R2_SUFFIX`
 - `BRAKER3_BAM_GLOB_TEMPLATE`
 - `ENABLE_PREFLIGHT`
 

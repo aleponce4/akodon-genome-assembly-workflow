@@ -531,12 +531,12 @@ rna_align_index_prefix() {
 
 rna_align_fastq_r1() {
     local library_id="$1"
-    printf '%s/%s_R1_001.fastq.gz' "$RNA_ALIGN_FASTQ_DIR" "$library_id"
+    printf '%s/%s%s' "$RNA_ALIGN_FASTQ_DIR" "$library_id" "$RNA_ALIGN_R1_SUFFIX"
 }
 
 rna_align_fastq_r2() {
     local library_id="$1"
-    printf '%s/%s_R2_001.fastq.gz' "$RNA_ALIGN_FASTQ_DIR" "$library_id"
+    printf '%s/%s%s' "$RNA_ALIGN_FASTQ_DIR" "$library_id" "$RNA_ALIGN_R2_SUFFIX"
 }
 
 rna_align_bam() {
