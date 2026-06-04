@@ -37,6 +37,7 @@ command -v perl >/dev/null 2>&1 || die "perl is required for genome preprocessin
 [[ -f "$input_fasta" ]] || die "RepeatMasker final masked genome not found: $input_fasta"
 
 log "Simplifying masked genome headers for annotation sample $sample_id"
+cd "$ANNOTATION_INPUT_DIR"
 perl "$GENOME_HEADER_SIMPLIFIER" "$input_fasta" "$name_stem" "$output_fasta" "$header_map"
 
 [[ -s "$output_fasta" ]] || die "Simplified annotation genome was not created: $output_fasta"
