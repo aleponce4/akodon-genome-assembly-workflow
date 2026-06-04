@@ -41,6 +41,15 @@ Notes:
 - Supernova should use raw, untrimmed 10x linked-read FASTQs
 - BRAKER3 BAMs must be aligned to the same simplified assembly headers used for that sample
 
+After the pipeline:
+
+* Pick the best single assembly as the working reference using QUAST, BUSCO, gaps, and contamination checks.
+* Screen the chosen assembly for contamination and suspicious scaffolds before GWAS.
+* Map the original WGS reads back to the reference and make coverage, repeat, and mappability masks.
+* Evaluate the final TSEBRA annotation with OMARK, protein BUSCO, gene counts, and functional annotation rate.
+* Manually inspect host-virus candidate loci, especially immune and interferon-related genes.
+* Package the final FASTA, GTF/GFF, repeat annotations, and masks as the GWAS reference bundle.
+
 ## Main Tools
 
 - Supernova
