@@ -436,6 +436,26 @@ report_executable_run_status() {
     fi
 }
 
+report_conda_prefix_run_status() {
+    local dependency="$1"
+    local env_prefix="$2"
+    local executable_name="$3"
+    local detail_present="$4"
+    local detail_missing="$5"
+    shift 5
+
+    if [[ ! -x "$env_prefix/bin/$executable_name" ]]; then
+        record_status "$dependency" "manual_required" "$env_prefix/bin/$executable_name" "$detail_missing"
+        return 0
+    fi
+
+    if run_in_conda_prefix "$env_prefix" "$executable_name" "$@" >/dev/null 2>&1; then
+        record_status "$dependency" "present" "$env_prefix" "$detail_present"
+    else
+        record_status "$dependency" "manual_required" "$env_prefix" "$detail_missing"
+    fi
+}
+
 run_probe() {
     local download_tool
     local runtime
@@ -563,7 +583,7 @@ run_install_light() {
 
 run_verify() {
     report_path_status "filter_env" "$FILTER_ENV_PREFIX/bin/seqkit" "Filter environment executable found." "Repo-local filter environment is missing."
-    report_executable_run_status "busco_env" "$BUSCO_ENV_PREFIX/bin/busco" "BUSCO executable works." "BUSCO environment is missing or broken." --version
+    report_conda_prefix_run_status "busco_env" "$BUSCO_ENV_PREFIX" busco "BUSCO environment works." "BUSCO environment is missing or broken." --version
     report_path_status "multiqc_env" "$MULTIQC_ENV_PREFIX/bin/multiqc" "MultiQC executable found." "Repo-local MultiQC environment is missing."
     report_path_status "repeat_env" "$REPEAT_ENV_PREFIX/bin/cd-hit-est" "Repeat helper executable found." "Repo-local repeat environment is missing."
     report_path_status "quast_env" "$QUAST_ENV_PREFIX/bin/quast.py" "QUAST executable found." "Repo-local QUAST environment is missing."

@@ -124,6 +124,34 @@ check_version_command() {
     fi
 }
 
+record_conda_version() {
+    local label="$1"
+    local env_name="$2"
+    local env_prefix="$3"
+    shift 3
+    local detail
+
+    set +e
+    detail="$((
+        activate_conda_env "$env_name" "$env_prefix" >/dev/null
+        timeout 30s "$@"
+    ) 2>&1)"
+    local exit_code=$?
+    set -e
+
+    detail="$(printf '%s\n' "$detail" | head -n 1)"
+    if [[ -z "$detail" ]]; then
+        detail="version command produced no output"
+    fi
+    printf '%s\t%s\n' "$label" "$detail" >> "$versions_tsv"
+
+    if (( exit_code == 0 )); then
+        record_check "${label}_version" "OK" "$detail"
+    else
+        record_check "${label}_version" "FAIL" "Version command failed: $detail"
+    fi
+}
+
 check_line_endings() {
     local bad_files=()
     local file
@@ -279,7 +307,9 @@ if resolved_quast="$(resolve_command_or_path_for_version "${QUAST_ENV_PREFIX:-}/
     record_version "quast" "$resolved_quast" --version
 fi
 
-if resolved_busco="$(resolve_command_or_path_for_version "${BUSCO_ENV_PREFIX:-}/bin/busco" busco)"; then
+if [[ -x "${BUSCO_ENV_PREFIX:-}/bin/busco" ]]; then
+    record_conda_version "busco" "$BUSCO_ENV" "$BUSCO_ENV_PREFIX" busco --version
+elif resolved_busco="$(resolve_command_or_path_for_version "" busco)"; then
     check_version_command "busco_version" "$resolved_busco" --version
     record_version "busco" "$resolved_busco" --version
 fi
