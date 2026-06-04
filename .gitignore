@@ -8,7 +8,11 @@ smoke_test/
 slurm_toy/
 augustus_config/
 data/
+RNA_seq/00_fastq/
 RNA_seq/bam_files/
+RNA_seq/genome_index/
+RNA_seq/log_files/
+RNA_seq/tmp/
 old_job_scripts/
 annotation/singularity_images/*.sif
 annotation_functional/data/bin/*.sif

@@ -140,6 +140,7 @@ busco_array="$(array_spec "$array_bounds" "$BUSCO_ARRAY_CONCURRENCY")"
 repeatmodeler_array="$(array_spec "$array_bounds" "$REPEATMODELER_ARRAY_CONCURRENCY")"
 repeatmasker_array="$(array_spec "$array_bounds" "$REPEATMASKER_ARRAY_CONCURRENCY")"
 annotation_array="$(array_spec "$annotation_array_bounds" "$ANNOTATION_ARRAY_CONCURRENCY")"
+rna_align_array="$(array_spec "$annotation_array_bounds" "$RNA_ALIGN_ARRAY_CONCURRENCY")"
 
 workflow_start_dependency=""
 
@@ -368,8 +369,23 @@ if truthy "$ENABLE_ANNOTATION"; then
             "$SCRIPT_DIR/slurm/15_braker2.sh" "$CONFIG_PATH")"
     fi
 
+    if truthy "$ENABLE_BRAKER3" && truthy "$ENABLE_RNA_ALIGNMENT"; then
+        rna_align_job_id="$(submit_stage 15 rna_align_hisat2 "$annotation_preprocess_job_id" "$rna_align_array" "$LOG_DIR/rna_align_%A_%a.out" "$LOG_DIR/rna_align_%A_%a.err" "$SCRIPT_DIR/slurm/15_rna_align_hisat2_array.sh" \
+            --job-name=akodon_rna_align \
+            --partition="$RNA_ALIGN_PARTITION" \
+            --qos="$RNA_ALIGN_QOS" \
+            --time="$RNA_ALIGN_TIME" \
+            --cpus-per-task="$RNA_ALIGN_CPUS" \
+            --mem="$RNA_ALIGN_MEM" \
+            --array="$rna_align_array" \
+            --output="$LOG_DIR/rna_align_%A_%a.out" \
+            --error="$LOG_DIR/rna_align_%A_%a.err" \
+            "$SCRIPT_DIR/slurm/15_rna_align_hisat2_array.sh" "$CONFIG_PATH")"
+    fi
+
     if truthy "$ENABLE_BRAKER3"; then
-        braker3_job_id="$(submit_stage 16 braker3 "$annotation_preprocess_job_id" "$annotation_array" "$LOG_DIR/braker3_%A_%a.out" "$LOG_DIR/braker3_%A_%a.err" "$SCRIPT_DIR/slurm/16_braker3.sh" \
+        braker3_dependency="$(join_dependencies "$annotation_preprocess_job_id" "${rna_align_job_id:-}")"
+        braker3_job_id="$(submit_stage 16 braker3 "$braker3_dependency" "$annotation_array" "$LOG_DIR/braker3_%A_%a.out" "$LOG_DIR/braker3_%A_%a.err" "$SCRIPT_DIR/slurm/16_braker3.sh" \
             --job-name=akodon_braker3 \
             --partition="$BRAKER3_PARTITION" \
             --qos="$BRAKER3_QOS" \
@@ -462,6 +478,7 @@ print_job "Protein download" "${annotation_download_job_id:-}"
 print_job "Protein prep" "${annotation_protein_prep_job_id:-}"
 print_job "GALBA" "${galba_job_id:-}"
 print_job "BRAKER2" "${braker2_job_id:-}"
+print_job "RNA align" "${rna_align_job_id:-}"
 print_job "BRAKER3" "${braker3_job_id:-}"
 print_job "TSEBRA" "${tsebra_job_id:-}"
 print_job "Isoform filter" "${isoform_job_id:-}"

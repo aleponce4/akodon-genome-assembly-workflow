@@ -146,6 +146,12 @@ ensure_base_dirs() {
     ensure_dir "$REPEAT_FAMILY_EXPORT_DIR"
     ensure_dir "$REPEAT_LIBRARY_DIR"
     ensure_dir "$REPEATMASKER_DIR"
+    ensure_dir "$RNA_SEQ_DIR"
+    ensure_dir "$RNA_ALIGN_FASTQ_DIR"
+    ensure_dir "$RNA_ALIGN_BAM_DIR"
+    ensure_dir "$RNA_ALIGN_LOG_DIR"
+    ensure_dir "$RNA_ALIGN_TMP_DIR"
+    ensure_dir "$RNA_ALIGN_INDEX_DIR"
     ensure_dir "$ANNOTATION_DIR"
     ensure_dir "$ANNOTATION_INPUT_DIR"
     ensure_dir "$ANNOTATION_OUTPUT_DIR"
@@ -496,6 +502,59 @@ braker3_bam_glob_for_sample() {
     glob_template="${glob_template//\{sample_id\}/$sample_id}"
     glob_template="${glob_template//\{assembly_stem\}/$stem}"
     printf '%s\n' "$glob_template"
+}
+
+rna_align_sample_bam_dir() {
+    local sample_id="$1"
+    printf '%s/%s' "$RNA_ALIGN_BAM_DIR" "$sample_id"
+}
+
+rna_align_sample_log_dir() {
+    local sample_id="$1"
+    printf '%s/%s' "$RNA_ALIGN_LOG_DIR" "$sample_id"
+}
+
+rna_align_sample_tmp_dir() {
+    local sample_id="$1"
+    printf '%s/%s' "$RNA_ALIGN_TMP_DIR" "$sample_id"
+}
+
+rna_align_sample_index_dir() {
+    local sample_id="$1"
+    printf '%s/%s' "$RNA_ALIGN_INDEX_DIR" "$sample_id"
+}
+
+rna_align_index_prefix() {
+    local sample_id="$1"
+    printf '%s/%s_hisat2_index' "$(rna_align_sample_index_dir "$sample_id")" "$sample_id"
+}
+
+rna_align_fastq_r1() {
+    local library_id="$1"
+    printf '%s/%s_R1_001.fastq.gz' "$RNA_ALIGN_FASTQ_DIR" "$library_id"
+}
+
+rna_align_fastq_r2() {
+    local library_id="$1"
+    printf '%s/%s_R2_001.fastq.gz' "$RNA_ALIGN_FASTQ_DIR" "$library_id"
+}
+
+rna_align_bam() {
+    local sample_id="$1"
+    local library_id="$2"
+    printf '%s/%s_aligned_sorted.bam' "$(rna_align_sample_bam_dir "$sample_id")" "$library_id"
+}
+
+rna_align_flagstat() {
+    local sample_id="$1"
+    local library_id="$2"
+    printf '%s/%s_alignment_stats.txt' "$(rna_align_sample_log_dir "$sample_id")" "$library_id"
+}
+
+rna_align_hisat2_log() {
+    local sample_id="$1"
+    local library_id="$2"
+    printf '%s/%s_hisat2.log' "$(rna_align_sample_log_dir "$sample_id")" "$library_id"
 }
 
 assert_softmasked_fasta() {

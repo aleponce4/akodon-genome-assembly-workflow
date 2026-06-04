@@ -421,6 +421,27 @@ report_command_status() {
     fi
 }
 
+report_command_with_optional_module_status() {
+    local dependency="$1"
+    local command_name="$2"
+    local module_name="$3"
+    local detail_present="$4"
+    local detail_missing="$5"
+    local resolved
+
+    if resolved="$(resolve_command_path "$command_name")"; then
+        record_status "$dependency" "present" "$resolved" "$detail_present"
+        return 0
+    fi
+
+    if [[ -n "$module_name" ]] && load_module_support && module load "$module_name" >/dev/null 2>&1 && resolved="$(resolve_command_path "$command_name")"; then
+        record_status "$dependency" "present" "$resolved" "$detail_present via module $module_name"
+        return 0
+    fi
+
+    record_status "$dependency" "manual_required" "$command_name" "$detail_missing"
+}
+
 report_executable_run_status() {
     local dependency="$1"
     local executable="$2"
@@ -601,6 +622,11 @@ run_verify() {
     report_path_status "galba_image" "$GALBA_SIF" "GALBA image found." "GALBA image is missing."
     report_path_status "interproscan_image" "$INTERPROSCAN_SIF" "InterProScan image found." "InterProScan image is missing."
     report_path_status "interproscan_data" "$INTERPROSCAN_DATA_DIR/data" "InterProScan data found." "InterProScan data is missing."
+    if truthy "$ENABLE_ANNOTATION" && truthy "$ENABLE_BRAKER3" && truthy "$ENABLE_RNA_ALIGNMENT"; then
+        report_command_with_optional_module_status "hisat2" hisat2 "$HISAT2_MODULE" "HISAT2 executable found." "HISAT2 executable is missing."
+        report_command_with_optional_module_status "hisat2_build" hisat2-build "$HISAT2_MODULE" "HISAT2 index builder found." "hisat2-build executable is missing."
+        report_command_with_optional_module_status "samtools" samtools "$SAMTOOLS_MODULE" "samtools executable found." "samtools executable is missing."
+    fi
     report_glob_status "tsebra_configs" "$TSEBRA_CONFIG_GLOB" "TSEBRA config files are present." "TSEBRA config files still need manual staging."
     report_path_status "braker3_proteins" "$BRAKER3_PROTEIN_FASTA" "Protein FASTA found." "BRAKER3/GALBA protein FASTA is missing."
     report_path_status "ncbi_dataset_tsv" "$NCBI_DATASETS_TSV" "NCBI datasets TSV found." "Annotation download manifest is missing."

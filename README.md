@@ -26,6 +26,7 @@ Annotation:
 13. **simplifyFastaHeaders.pl**: merges and simplifies reference protein FASTA files.
 14. **GALBA**: predicts genes with protein evidence.
 15. **BRAKER2**: optional protein-evidence predictor, off by default.
+15. **HISAT2/samtools**: aligns RNA-seq reads to each simplified assembly for BRAKER3 evidence.
 16. **BRAKER3**: predicts genes with RNA BAM and protein evidence.
 17. **TSEBRA**: combines selected GALBA/BRAKER prediction sets.
 18. **get_longest_isoform.py**: keeps the longest isoform per gene model.
@@ -34,7 +35,7 @@ Annotation:
 
 Notes:
 
-- stages `14`, `15`, and `16` are alternative prediction tracks
+- stages `14`, optional `15` BRAKER2, and `16` are prediction tracks; stage `15` also builds RNA BAM evidence for BRAKER3
 - the default annotation track is GALBA + BRAKER3 combined by TSEBRA
 - annotation runs for all samples by default, with sample-specific output folders
 - the annotation branch starts after RepeatMasker
@@ -56,6 +57,7 @@ Still to do:
 - MultiQC
 - RepeatModeler / RepeatMasker via `dfam/tetools`
 - GALBA
+- HISAT2 / samtools
 - BRAKER2 / BRAKER3
 - TSEBRA
 - InterProScan
@@ -78,7 +80,18 @@ Still to do:
 - sample table in `config/samples.tsv`
 - BUSCO lineage data
 - container images for RepeatModeler/RepeatMasker, BRAKER, GALBA, and InterProScan
-- annotation inputs such as `ncbi_dataset.tsv`, protein FASTA, TSEBRA configs, and per-sample RNA BAMs for BRAKER3
+- RNA-seq FASTQs in `RNA_seq/00_fastq/` for BRAKER3 evidence generation
+- annotation inputs such as `ncbi_dataset.tsv`, protein FASTA, TSEBRA configs, and optional precomputed per-sample RNA BAMs for BRAKER3
+
+Default RNA-seq FASTQ layout:
+
+```text
+RNA_seq/00_fastq/A1_R1_001.fastq.gz
+RNA_seq/00_fastq/A1_R2_001.fastq.gz
+...
+RNA_seq/00_fastq/B5_R1_001.fastq.gz
+RNA_seq/00_fastq/B5_R2_001.fastq.gz
+```
 
 Default BRAKER3 BAM layout:
 
@@ -106,6 +119,9 @@ output/BUSCO_results_filtered/      BUSCO sample outputs
 output/multiQC_filtered/            MultiQC report and qc_summary.tsv
 output/Repeat_modeler/              RepeatModeler databases and merged libraries
 output/Repeat_masker/               sample-specific masked assemblies
+RNA_seq/bam_files/                  BRAKER3 RNA BAM evidence
+RNA_seq/log_files/                  HISAT2 and samtools flagstat logs
+RNA_seq/tmp/                        temporary RNA alignment files
 annotation/input/                   simplified genomes, maps, protein inputs
 annotation/output/<sample_id>/      GALBA/BRAKER/TSEBRA/isoform outputs
 annotation/original_headers/        restored genome and GTF deliverables
@@ -135,6 +151,9 @@ Common settings:
 - `INTERPROSCAN_DATA_DIR`
 - Slurm account, partition, QoS, memory, and walltime
 - `ANNOTATION_SAMPLE_MODE=all`
+- `ENABLE_RNA_ALIGNMENT`
+- `RNA_ALIGN_FASTQ_DIR`
+- `RNA_ALIGN_LIBRARY_IDS`
 - `BRAKER3_BAM_GLOB_TEMPLATE`
 - `ENABLE_PREFLIGHT`
 
@@ -166,7 +185,7 @@ Still manual by default:
 
 - Supernova if the legacy path is unavailable
 - BRAKER and GALBA SIFs unless source paths are provided
-- biological inputs such as `Vertebrata.fa`, `ncbi_dataset.tsv`, and RNA BAMs
+- biological inputs such as `Vertebrata.fa`, `ncbi_dataset.tsv`, and RNA FASTQs
 
 ## Run
 

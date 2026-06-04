@@ -53,6 +53,10 @@ if truthy "$ENABLE_ANNOTATION"; then
         run_stage "$SCRIPT_DIR/slurm/15_braker2.sh"
     fi
 
+    if truthy "$ENABLE_BRAKER3" && truthy "$ENABLE_RNA_ALIGNMENT"; then
+        run_stage "$SCRIPT_DIR/slurm/15_rna_align_hisat2_array.sh"
+    fi
+
     if truthy "$ENABLE_BRAKER3"; then
         run_stage "$SCRIPT_DIR/slurm/16_braker3.sh"
     fi

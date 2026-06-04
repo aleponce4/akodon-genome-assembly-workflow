@@ -94,7 +94,8 @@ printf '  11  Annotation genome preprocessing: simplify masked-genome headers\n'
 printf '  12  Download reference protein sets from NCBI\n'
 printf '  13  Prepare combined simplified protein FASTA for GALBA/BRAKER\n'
 printf '  14  Run GALBA with protein evidence\n'
-printf '  15  Run BRAKER2 with protein evidence\n'
+printf '  15  Run BRAKER2 with protein evidence (optional)\n'
+printf '  15  Align RNA-seq reads with HISAT2/samtools for BRAKER3\n'
 printf '  16  Run BRAKER3 with RNA-seq BAM evidence\n'
 printf '  17  Combine GALBA + BRAKER with TSEBRA\n'
 printf '  18  Filter to longest isoform and export CDS/proteins\n'
@@ -115,7 +116,12 @@ report_path "GALBA image" "$GALBA_SIF" file
 report_path "InterProScan image" "$INTERPROSCAN_SIF" file
 report_path "InterProScan data" "$INTERPROSCAN_DATA_DIR" dir
 report_path "Longest isoform script" "$ANNOTATION_LONGEST_ISOFORM_SCRIPT" file
+report_path "RNA FASTQ dir" "$RNA_ALIGN_FASTQ_DIR" dir
+report_path "RNA BAM dir" "$RNA_ALIGN_BAM_DIR" dir
+report_path "RNA log dir" "$RNA_ALIGN_LOG_DIR" dir
 report_path "Preflight dir" "$PREFLIGHT_DIR" dir
+printf '    %-24s %s\n' "HISAT2 module" "$HISAT2_MODULE"
+printf '    %-24s %s\n' "samtools module" "$SAMTOOLS_MODULE"
 printf '\n'
 
 sample_total="$(sample_count)"
@@ -171,7 +177,9 @@ printf '  11 + 13 -> 14\n'
 printf '    GALBA uses the simplified masked genome plus the simplified protein set.\n'
 printf '  11 + protein evidence -> 15\n'
 printf '    BRAKER2 is a protein-evidence-only alternative model.\n'
-printf '  11 + RNA BAMs + protein evidence -> 16\n'
+printf '  11 + RNA FASTQs -> 15\n'
+printf '    HISAT2/samtools aligns RNA-seq libraries to each simplified genome.\n'
+printf '  11 + 15 RNA BAMs + protein evidence -> 16\n'
 printf '    BRAKER3 uses RNA-seq BAMs and vertebrate proteins.\n'
 printf '  14 + 16 -> 17\n'
 printf '    TSEBRA combines GALBA and BRAKER predictions using their GTF and hints files.\n'
@@ -185,6 +193,9 @@ printf '\n'
 printf 'Annotation mode\n'
 printf '    ANNOTATION_SAMPLE_MODE     %s\n' "$ANNOTATION_SAMPLE_MODE"
 printf '    ANNOTATION_FINAL_MODEL     %s\n' "$ANNOTATION_FINAL_MODEL"
+printf '    ENABLE_RNA_ALIGNMENT       %s\n' "$ENABLE_RNA_ALIGNMENT"
+printf '    RNA_ALIGN_FASTQ_DIR        %s\n' "$RNA_ALIGN_FASTQ_DIR"
+printf '    RNA_ALIGN_LIBRARY_IDS      %s\n' "$RNA_ALIGN_LIBRARY_IDS"
 printf '    BRAKER3 BAM template       %s\n' "$BRAKER3_BAM_GLOB_TEMPLATE"
 printf '\n'
 
@@ -195,6 +206,7 @@ for ((idx = 0; idx < annotation_total; idx++)); do
     report_path "Masked genome input" "$(annotation_masked_genome "$annotation_sample")" file
     report_path "Simplified genome" "$(annotation_simplified_genome "$annotation_sample")" file
     report_path "Genome header map" "$(annotation_header_map "$annotation_sample")" file
+    report_path "RNA BAM dir" "$(rna_align_sample_bam_dir "$annotation_sample")" dir
     report_glob "BRAKER3 BAM glob" "$(braker3_bam_glob_for_sample "$annotation_sample")"
     report_path "GALBA current" "$(annotation_predictor_link galba "$annotation_sample")" dir
     report_path "BRAKER2 current" "$(annotation_predictor_link braker2 "$annotation_sample")" dir

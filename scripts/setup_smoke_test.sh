@@ -11,6 +11,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 source_config "$CONFIG_PATH"
 ensure_base_dirs
 ensure_dir "$DATA_DIR"
+ensure_dir "$RNA_ALIGN_FASTQ_DIR"
 
 sample_total="$(sample_count)"
 for ((idx = 0; idx < sample_total; idx++)); do
@@ -18,6 +19,11 @@ for ((idx = 0; idx < sample_total; idx++)); do
     fastq_sample="$(fastq_sample_by_index "$idx")"
     write_smoke_fastq_gz "$DATA_DIR/${fastq_sample}_S1_L001_R1_001.fastq.gz" "${fastq_sample}_R1"
     write_smoke_fastq_gz "$DATA_DIR/${fastq_sample}_S1_L001_R2_001.fastq.gz" "${fastq_sample}_R2"
+done
+
+for library_id in $RNA_ALIGN_LIBRARY_IDS; do
+    write_smoke_fastq_gz "$(rna_align_fastq_r1 "$library_id")" "${library_id}_R1"
+    write_smoke_fastq_gz "$(rna_align_fastq_r2 "$library_id")" "${library_id}_R2"
 done
 
 ensure_dir "$ANNOTATION_INPUT_DIR"
