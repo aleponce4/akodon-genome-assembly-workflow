@@ -532,6 +532,16 @@ run_install() {
     fi
 }
 
+run_install_light() {
+    REPEATMODELER_IMAGE_SOURCE=""
+    BRAKER_IMAGE_SOURCE=""
+    GALBA_IMAGE_SOURCE=""
+    INTERPROSCAN_IMAGE_SOURCE=""
+    INTERPROSCAN_DATA_ARCHIVE_SOURCE=""
+
+    run_install
+}
+
 run_verify() {
     report_path_status "filter_env" "$FILTER_ENV_PREFIX/bin/seqkit" "Filter environment executable found." "Repo-local filter environment is missing."
     report_path_status "busco_env" "$BUSCO_ENV_PREFIX/bin/busco" "BUSCO executable found." "Repo-local BUSCO environment is missing."
@@ -561,6 +571,9 @@ case "$MODE" in
         ;;
     install)
         run_install
+        ;;
+    install-light)
+        run_install_light
         ;;
     verify)
         run_verify

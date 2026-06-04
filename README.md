@@ -113,6 +113,13 @@ bash scripts/hpc/bootstrap_dependencies.sh install config/bootstrap.env
 bash scripts/hpc/bootstrap_dependencies.sh verify config/bootstrap.env
 ```
 
+Use `install-light` on login nodes to skip large container and InterProScan
+database downloads:
+
+```bash
+bash scripts/hpc/bootstrap_dependencies.sh install-light config/bootstrap.env
+```
+
 Automated by default:
 
 - repo-local Conda environments
