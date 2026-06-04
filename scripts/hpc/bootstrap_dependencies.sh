@@ -116,6 +116,19 @@ conda_solver_bin() {
     fi
 }
 
+run_in_conda_prefix() {
+    local env_prefix="$1"
+    shift
+
+    load_anaconda
+
+    if command -v conda >/dev/null 2>&1; then
+        conda run -p "$env_prefix" "$@"
+    else
+        PATH="$env_prefix/bin:$PATH" "$@"
+    fi
+}
+
 path_is_url() {
     [[ "$1" == http://* || "$1" == https://* ]]
 }
@@ -343,7 +356,6 @@ ensure_conda_env() {
 
 ensure_busco_lineage() {
     local download_root
-    local busco_bin
 
     if [[ -d "$BUSCO_LINEAGE_DIR" ]]; then
         record_status "busco_lineage" "present" "$BUSCO_LINEAGE_DIR" "Lineage already present."
@@ -356,10 +368,9 @@ ensure_busco_lineage() {
     fi
 
     download_root="$(dirname "$(dirname "$BUSCO_LINEAGE_DIR")")"
-    busco_bin="$BUSCO_ENV_PREFIX/bin/busco"
     ensure_dir "$download_root"
 
-    if "$busco_bin" --download_path "$download_root" --download "$BUSCO_LINEAGE_NAME"; then
+    if run_in_conda_prefix "$BUSCO_ENV_PREFIX" busco --download_path "$download_root" --download "$BUSCO_LINEAGE_NAME"; then
         record_status "busco_lineage" "installed" "$BUSCO_LINEAGE_DIR" "Downloaded lineage with BUSCO."
     else
         record_status "busco_lineage" "failed" "$BUSCO_LINEAGE_DIR" "BUSCO lineage download failed."
