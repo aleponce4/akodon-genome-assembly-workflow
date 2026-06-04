@@ -107,6 +107,23 @@ record_version() {
     printf '%s\t%s\n' "$label" "$detail" >> "$versions_tsv"
 }
 
+check_version_command() {
+    local check_name="$1"
+    shift
+    local detail
+
+    set +e
+    detail="$(timeout 30s "$@" 2>&1 | head -n 1)"
+    local exit_code=$?
+    set -e
+
+    if (( exit_code == 0 )); then
+        record_check "$check_name" "OK" "${detail:-version command succeeded}"
+    else
+        record_check "$check_name" "FAIL" "Version command failed: ${detail:-no output}"
+    fi
+}
+
 check_line_endings() {
     local bad_files=()
     local file
@@ -263,6 +280,7 @@ if resolved_quast="$(resolve_command_or_path_for_version "${QUAST_ENV_PREFIX:-}/
 fi
 
 if resolved_busco="$(resolve_command_or_path_for_version "${BUSCO_ENV_PREFIX:-}/bin/busco" busco)"; then
+    check_version_command "busco_version" "$resolved_busco" --version
     record_version "busco" "$resolved_busco" --version
 fi
 
