@@ -7,30 +7,30 @@ Slurm workflow for assembly, repeat annotation, structural annotation, and funct
 
 Assembly:
 
-1. Supernova
-2. `supernova mkoutput`
-3. scaffold filtering with `seqkit`
-4. QUAST
-5. BUSCO
-6. BUSCO plot
-7. MultiQC
-8. RepeatModeler
-9. repeat library merge and CD-HIT filtering
-10. RepeatMasker
+1. Supernova assembles each sample from raw 10x linked-read FASTQs.
+2. `supernova mkoutput` exports the assembly FASTA used by downstream steps.
+3. `seqkit` removes scaffolds shorter than the configured minimum length.
+4. QUAST summarizes contiguity and basic assembly statistics.
+5. BUSCO estimates gene-space completeness using the configured lineage.
+6. BUSCO plot optionally makes summary plots from BUSCO results.
+7. MultiQC combines QUAST and BUSCO summaries into one QC folder.
+8. RepeatModeler builds a sample-specific repeat library.
+9. The repeat library stage merges sample libraries and filters redundancy.
+10. RepeatMasker softmasks repeats before annotation.
 
 Annotation:
 
-0. preflight checks for line endings, tools, paths, FASTQs, and evidence files
-11. simplify masked genome headers
-12. download reference proteins from NCBI
-13. prepare combined protein FASTA
-14. GALBA
-15. BRAKER2, available but off by default
-16. BRAKER3
-17. TSEBRA
-18. longest-isoform filtering
-19. restore original headers
-20. InterProScan
+0. Preflight checks line endings, tools, paths, FASTQs, and evidence files.
+11. Header preprocessing simplifies the masked genome FASTA for annotation tools.
+12. NCBI download fetches reference protein datasets listed in the input TSV.
+13. Protein preparation merges and simplifies the reference protein FASTA files.
+14. GALBA predicts genes with protein evidence.
+15. BRAKER2 is kept as an optional protein-evidence predictor but is off by default.
+16. BRAKER3 predicts genes with RNA BAM and protein evidence.
+17. TSEBRA combines the selected GALBA/BRAKER prediction sets.
+18. Isoform filtering keeps the longest isoform per gene model.
+19. Header restoration writes final genome and GTF files with original contig names.
+20. InterProScan adds functional annotations to the selected protein set.
 
 Notes:
 
