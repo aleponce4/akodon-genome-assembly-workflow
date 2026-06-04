@@ -205,7 +205,12 @@ Each submission writes a manifest under `logs/slurm/submissions/`. Use:
 ```bash
 bash scripts/summarize_slurm_run.sh logs/slurm/submissions/run_YYYYMMDD_HHMMSS_PID_jobs.tsv
 bash scripts/cancel_submitted_run.sh logs/slurm/submissions/run_YYYYMMDD_HHMMSS_PID_jobs.tsv
+bash scripts/make_run_report.sh config/pipeline.env
 ```
+
+The run report writes a small text index and resource TSV under
+`logs/slurm/run_reports/`, pointing to the main outputs and any non-completed
+SLURM stages.
 
 Smoke test:
 
