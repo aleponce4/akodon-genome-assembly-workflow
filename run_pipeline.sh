@@ -113,7 +113,11 @@ submit_stage() {
     fi
 
     local job_id
-    job_id="$(sbatch "${sbatch_args[@]}" "$@")"
+    if ! job_id="$(sbatch "${sbatch_args[@]}" "$@")"; then
+        die "sbatch failed for stage ${stage_id} (${stage_name}). See the SLURM error above. Submission manifest so far: $submission_manifest"
+    fi
+    [[ -n "$job_id" ]] || die "sbatch returned an empty job id for stage ${stage_id} (${stage_name}). Submission manifest so far: $submission_manifest"
+
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$stage_id" "$stage_name" "$job_id" "$dependency" "$array_value" "$stdout_path" "$stderr_path" "$script_path" \
         >> "$submission_manifest"

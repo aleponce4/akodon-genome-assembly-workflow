@@ -15,6 +15,11 @@ manifest="${1:-}"
 status_for_job() {
     local job_id="$1"
 
+    if [[ -z "$job_id" ]]; then
+        printf 'NOT_SUBMITTED\tNA\tNA\n'
+        return 0
+    fi
+
     if ! command -v sacct >/dev/null 2>&1; then
         printf 'NA\tNA\tNA\n'
         return 0
@@ -33,6 +38,11 @@ status_for_job() {
 
 resource_for_job() {
     local job_id="$1"
+
+    if [[ -z "$job_id" ]]; then
+        printf 'NA\tNA\tNA\tNA\n'
+        return 0
+    fi
 
     if ! command -v sacct >/dev/null 2>&1; then
         printf 'NA\tNA\tNA\tNA\n'
@@ -70,8 +80,8 @@ else
     printf 'stage_id\tstage_name\tjob_id\tstate\texit_code\telapsed\tstderr\n'
 fi
 
-awk -F '\t' 'NR > 1 { print $1 "\t" $2 "\t" $3 "\t" $7 }' "$manifest" |
-while IFS=$'\t' read -r stage_id stage_name job_id stderr_path; do
+awk -F '\t' 'NR > 1 { print $1 "\034" $2 "\034" $3 "\034" $7 }' "$manifest" |
+while IFS=$'\034' read -r stage_id stage_name job_id stderr_path; do
     IFS=$'\t' read -r state exit_code elapsed < <(status_for_job "$job_id")
     if (( resources_mode )); then
         IFS=$'\t' read -r alloc_cpus req_mem max_rss total_cpu < <(resource_for_job "$job_id")
