@@ -81,6 +81,7 @@ for ((idx = 0; idx < sample_total; idx++)); do
 done
 
 log "Collapsing redundant repeat families with CD-HIT-EST"
+cd "$REPEAT_LIBRARY_DIR"
 cd-hit-est \
     -i "$merged_repeats" \
     -o "$non_redundant_repeats" \

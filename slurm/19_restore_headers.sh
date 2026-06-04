@@ -23,6 +23,7 @@ manifest_file="$restore_dir/restored_files.tsv"
 [[ -f "$header_map" ]] || die "Annotation header map not found: $header_map"
 [[ -f "$input_genome" ]] || die "Simplified annotation genome not found: $input_genome"
 ensure_dir "$restore_dir"
+cd "$restore_dir"
 
 awk -F '\t' '
     NR == FNR {

@@ -66,6 +66,7 @@ fi
 command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not found: $SINGULARITY_BIN"
 
 log "RepeatMasker round 1 for sample $sample_id"
+cd "$masker_output_dir"
 "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatMasker \
     -pa "$repeatmasker_threads" \
     -noint \

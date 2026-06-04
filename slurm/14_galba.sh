@@ -45,6 +45,7 @@ log "Preparing writable AUGUSTUS config for GALBA"
 [[ -d "$augustus_dir/config" ]] || die "GALBA AUGUSTUS config was not created: $augustus_dir/config"
 
 log "Running GALBA"
+cd "$run_dir"
 "$SINGULARITY_BIN" exec \
     -B "$PROJECT_ROOT:$PROJECT_ROOT" \
     -B "$augustus_dir/config:/opt/Augustus/config" \

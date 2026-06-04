@@ -35,6 +35,7 @@ fi
 [[ -d "$assembly_dir" ]] || die "Assembly directory not found: $assembly_dir"
 
 log "Generating FASTA output for sample $sample_id"
+cd "$PSEUDOHAP_DIR"
 "$SUPERNOVA_BIN" mkoutput \
     --style="$SUPERNOVA_MKOUTPUT_STYLE" \
     --asmdir="$assembly_dir" \

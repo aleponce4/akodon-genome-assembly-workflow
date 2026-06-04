@@ -124,6 +124,7 @@ if truthy "$BRAKER3_USEEXISTING"; then
 fi
 
 log "Running BRAKER3"
+cd "$run_dir"
 "$SINGULARITY_BIN" exec \
     -B "$PROJECT_ROOT:$PROJECT_ROOT" \
     -B "$augustus_dir/config:/opt/Augustus/config" \

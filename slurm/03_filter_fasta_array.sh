@@ -30,5 +30,6 @@ fi
 activate_conda_env "$FILTER_ENV" "${FILTER_ENV_PREFIX:-}"
 
 log "Filtering scaffolds shorter than $MIN_SCAFFOLD_BP bp for sample $sample_id"
+cd "$FILTERED_DIR"
 seqkit seq -m "$MIN_SCAFFOLD_BP" "$input_fasta" > "$output_fasta"
 [[ -s "$output_fasta" ]] || die "Filtered FASTA is missing or empty: $output_fasta"

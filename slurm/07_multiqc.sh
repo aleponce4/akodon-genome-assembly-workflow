@@ -80,6 +80,7 @@ fi
 activate_conda_env "$MULTIQC_ENV" "${MULTIQC_ENV_PREFIX:-}"
 
 log "Running MultiQC across BUSCO and QUAST outputs"
+cd "$MULTIQC_DIR"
 multiqc "$BUSCO_DIR" "$QUAST_DIR" -o "$MULTIQC_DIR"
 [[ -s "$MULTIQC_DIR/multiqc_report.html" ]] || die "MultiQC report was not created: $MULTIQC_DIR/multiqc_report.html"
 write_qc_summary

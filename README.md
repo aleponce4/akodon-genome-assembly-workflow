@@ -83,6 +83,33 @@ RNA_seq/bam_files/0339/*.bam
 RNA_seq/bam_files/0340/*.bam
 ```
 
+## Output Layout
+
+The workflow writes stage outputs under fixed directories from
+[`config/pipeline.env`](config/pipeline.env). SLURM logs are separate from data
+outputs.
+
+```text
+logs/slurm/                         sbatch stdout/stderr and submission manifests
+output/preflight/                   tool versions and preflight checks
+output/supernova_runs/              Supernova run directories
+output/pseudohap/                   canonical mkoutput FASTA files
+output/filtered_fasta/              scaffold-filtered assemblies
+output/QUAST_results_filtered/      QUAST reports
+output/BUSCO_results_filtered/      BUSCO sample outputs
+output/multiQC_filtered/            MultiQC report and qc_summary.tsv
+output/Repeat_modeler/              RepeatModeler databases and merged libraries
+output/Repeat_masker/               sample-specific masked assemblies
+annotation/input/                   simplified genomes, maps, protein inputs
+annotation/output/<sample_id>/      GALBA/BRAKER/TSEBRA/isoform outputs
+annotation/original_headers/        restored genome and GTF deliverables
+annotation_functional/output/       InterProScan outputs
+```
+
+The stage scripts also `cd` into the expected output/work directory before
+calling external tools. That keeps auxiliary files from landing in the repo root
+if a tool writes side outputs relative to the current directory.
+
 ## Setup
 
 Review:

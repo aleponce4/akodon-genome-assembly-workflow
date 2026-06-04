@@ -46,6 +46,7 @@ log "Preparing writable AUGUSTUS config for BRAKER2"
 [[ -d "$augustus_dir/config" ]] || die "BRAKER2 AUGUSTUS config was not created: $augustus_dir/config"
 
 log "Running BRAKER2"
+cd "$run_dir"
 "$SINGULARITY_BIN" exec \
     -B "$PROJECT_ROOT:$PROJECT_ROOT" \
     -B "$augustus_dir/config:/opt/Augustus/config" \

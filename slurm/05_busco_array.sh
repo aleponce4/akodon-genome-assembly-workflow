@@ -35,6 +35,7 @@ activate_conda_env "$BUSCO_ENV" "${BUSCO_ENV_PREFIX:-}"
 [[ -d "$BUSCO_LINEAGE_DIR" ]] || die "BUSCO lineage directory not found: $BUSCO_LINEAGE_DIR"
 
 log "Running BUSCO for sample $sample_id"
+cd "$BUSCO_DIR"
 busco \
     -i "$input_fasta" \
     -o "$output_name" \

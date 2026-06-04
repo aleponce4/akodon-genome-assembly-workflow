@@ -63,6 +63,7 @@ fi
 [[ -f "$ANNOTATION_LONGEST_ISOFORM_SCRIPT" ]] || die "Longest isoform script not found: $ANNOTATION_LONGEST_ISOFORM_SCRIPT"
 [[ -f "$genome_fasta" ]] || die "Simplified annotation genome not found: $genome_fasta"
 command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not found: $SINGULARITY_BIN"
+cd "$(annotation_isoform_root "$sample_id")"
 
 for idx in "${!model_names[@]}"; do
     model_name="${model_names[$idx]}"

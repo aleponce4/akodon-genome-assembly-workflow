@@ -74,5 +74,6 @@ fi
 activate_quast_env
 
 log "Running QUAST on ${#quast_inputs[@]} filtered assemblies"
+cd "$QUAST_DIR"
 "$QUAST_BIN" "${quast_args[@]}" "${quast_inputs[@]}"
 [[ -s "$(quast_report_tsv)" ]] || die "QUAST report was not created: $(quast_report_tsv)"

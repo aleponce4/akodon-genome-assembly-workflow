@@ -32,4 +32,5 @@ fi
 [[ -f "$busco_plot_script" ]] || die "BUSCO plot script not found: $busco_plot_script"
 
 log "Generating BUSCO summary plots"
+cd "$BUSCO_SUMMARY_DIR"
 python "$busco_plot_script" -wd "$BUSCO_SUMMARY_DIR"

@@ -35,6 +35,7 @@ find "$NCBI_PROTEIN_ZIP_DIR" -maxdepth 1 -type f -name '*.zip' | grep -q . \
 ensure_dir "$NCBI_PROTEIN_TEMP_DIR"
 temp_dir="$(mktemp -d "$NCBI_PROTEIN_TEMP_DIR/run.XXXXXX")"
 combined_fasta="$ANNOTATION_INPUT_DIR/combined_protein_set.fasta"
+cd "$ANNOTATION_INPUT_DIR"
 
 cleanup() {
     rm -rf "$temp_dir"

@@ -32,6 +32,7 @@ fi
 datasets_bin="$(resolve_ncbi_datasets_bin)"
 command -v "$datasets_bin" >/dev/null 2>&1 || die "datasets CLI not found: $datasets_bin"
 [[ -f "$NCBI_DATASETS_TSV" ]] || die "NCBI datasets TSV not found: $NCBI_DATASETS_TSV"
+cd "$NCBI_PROTEIN_ZIP_DIR"
 
 while IFS=$'\t' read -r assembly_accession assembly_name _; do
     [[ -n "${assembly_accession:-}" ]] || continue

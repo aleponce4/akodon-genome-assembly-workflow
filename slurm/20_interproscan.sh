@@ -38,6 +38,7 @@ fi
 command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not found: $SINGULARITY_BIN"
 
 log "Running InterProScan for model $INTERPROSCAN_RUN_NAME"
+cd "$run_dir"
 "$SINGULARITY_BIN" exec \
     -B "$INTERPROSCAN_DATA_DIR/data:/opt/interproscan/data" \
     -B "$PROJECT_ROOT:$PROJECT_ROOT" \

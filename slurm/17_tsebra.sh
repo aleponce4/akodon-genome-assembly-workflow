@@ -58,6 +58,8 @@ command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not
 mapfile -t config_files < <(compgen -G "$TSEBRA_CONFIG_GLOB" | sort || true)
 (( ${#config_files[@]} > 0 )) || die "No TSEBRA config files were found with glob: $TSEBRA_CONFIG_GLOB"
 
+cd "$run_dir"
+
 for config_file in "${config_files[@]}"; do
     config_name="$(basename "$config_file" .cfg)"
     config_output_dir="$run_dir/$config_name"
