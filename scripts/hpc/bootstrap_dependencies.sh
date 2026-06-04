@@ -120,13 +120,17 @@ run_in_conda_prefix() {
     local env_prefix="$1"
     shift
 
-    load_anaconda
+    (
+        load_anaconda
 
-    if command -v conda >/dev/null 2>&1; then
-        conda run -p "$env_prefix" "$@"
-    else
-        PATH="$env_prefix/bin:$PATH" "$@"
-    fi
+        if [[ -f "$env_prefix/bin/activate" ]]; then
+            # shellcheck disable=SC1090
+            source "$env_prefix/bin/activate"
+            "$@"
+        else
+            PATH="$env_prefix/bin:$PATH" "$@"
+        fi
+    )
 }
 
 path_is_url() {
