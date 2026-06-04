@@ -43,7 +43,8 @@ Notes:
 
 After the pipeline:
 
-* Pick the best single assembly as the working reference using QUAST, BUSCO, gaps, and contamination checks.
+* Pick one primary assembly as the working reference using QUAST, BUSCO, gaps, and contamination checks.
+* Keep the other assemblies for validation, candidate-locus rescue, and checking assembly-specific artifacts.
 * Screen the chosen assembly for contamination and suspicious scaffolds before GWAS.
 * Map the original WGS reads back to the reference and make coverage, repeat, and mappability masks.
 * Evaluate the final TSEBRA annotation with OMARK, protein BUSCO, gene counts, and functional annotation rate.
