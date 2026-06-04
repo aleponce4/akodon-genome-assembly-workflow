@@ -183,6 +183,17 @@ Submit:
 bash run_pipeline.sh config/pipeline.env
 ```
 
+Submit in chained chunks to avoid holding every downstream job in the queue at
+once:
+
+```bash
+ENABLE_ANNOTATION=1 ENABLE_INTERPROSCAN=0 bash run_pipeline_chained.sh config/pipeline.env
+```
+
+This submits stages in small ranges such as `00-03`, `04-10`, `11-13`,
+`14-16`, and `17-20`; each next range is submitted by a tiny SLURM job only
+after the previous range finishes successfully.
+
 Resume from a stage after fixing a failed run:
 
 ```bash
