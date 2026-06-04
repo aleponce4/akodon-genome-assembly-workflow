@@ -17,6 +17,8 @@ command -v sbatch >/dev/null 2>&1 || die "sbatch was not found on PATH."
 PIPELINE_START_STAGE="${PIPELINE_START_STAGE:-00}"
 PIPELINE_END_STAGE="${PIPELINE_END_STAGE:-20}"
 PIPELINE_DEPENDENCY_JOB_ID="${PIPELINE_DEPENDENCY_JOB_ID:-}"
+PIPELINE_RUN_ID="${PIPELINE_RUN_ID:-$(date '+%Y%m%d_%H%M%S')_$$}"
+[[ "$PIPELINE_RUN_ID" =~ ^[A-Za-z0-9._-]+$ ]] || die "PIPELINE_RUN_ID may only contain letters, numbers, dot, underscore, and dash."
 
 normalize_stage() {
     local stage="$1"
@@ -33,11 +35,13 @@ PIPELINE_END_STAGE="$(normalize_stage "$PIPELINE_END_STAGE")"
 (( $(stage_number "$PIPELINE_START_STAGE") <= $(stage_number "$PIPELINE_END_STAGE") )) || \
     die "PIPELINE_START_STAGE must be <= PIPELINE_END_STAGE."
 
-submission_timestamp="$(date '+%Y%m%d_%H%M%S')"
 submission_dir="$LOG_DIR/submissions"
 ensure_dir "$submission_dir"
-submission_manifest="$submission_dir/run_${submission_timestamp}_jobs.tsv"
-config_snapshot="$submission_dir/run_${submission_timestamp}_config.env"
+submission_manifest="$submission_dir/run_${PIPELINE_RUN_ID}_jobs.tsv"
+config_snapshot="$submission_dir/run_${PIPELINE_RUN_ID}_config.env"
+
+[[ ! -e "$submission_manifest" ]] || die "Submission manifest already exists: $submission_manifest"
+[[ ! -e "$config_snapshot" ]] || die "Config snapshot already exists: $config_snapshot"
 
 cp "$CONFIG_PATH" "$config_snapshot"
 {
@@ -45,6 +49,7 @@ cp "$CONFIG_PATH" "$config_snapshot"
     printf 'PIPELINE_START_STAGE=%q\n' "$PIPELINE_START_STAGE"
     printf 'PIPELINE_END_STAGE=%q\n' "$PIPELINE_END_STAGE"
     printf 'PIPELINE_DEPENDENCY_JOB_ID=%q\n' "$PIPELINE_DEPENDENCY_JOB_ID"
+    printf 'PIPELINE_RUN_ID=%q\n' "$PIPELINE_RUN_ID"
 } >> "$config_snapshot"
 
 printf 'stage_id\tstage_name\tjob_id\tdependency\tarray\tstdout\tstderr\tscript\n' > "$submission_manifest"

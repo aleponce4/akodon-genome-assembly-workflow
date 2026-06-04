@@ -159,8 +159,8 @@ PIPELINE_START_STAGE=04 bash run_pipeline.sh config/pipeline.env
 Each submission writes a manifest under `logs/slurm/submissions/`. Use:
 
 ```bash
-bash scripts/summarize_slurm_run.sh logs/slurm/submissions/run_YYYYMMDD_HHMMSS_jobs.tsv
-bash scripts/cancel_submitted_run.sh logs/slurm/submissions/run_YYYYMMDD_HHMMSS_jobs.tsv
+bash scripts/summarize_slurm_run.sh logs/slurm/submissions/run_YYYYMMDD_HHMMSS_PID_jobs.tsv
+bash scripts/cancel_submitted_run.sh logs/slurm/submissions/run_YYYYMMDD_HHMMSS_PID_jobs.tsv
 ```
 
 Smoke test:
