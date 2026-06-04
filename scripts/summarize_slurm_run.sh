@@ -52,13 +52,16 @@ resource_for_job() {
     local line
     line="$(sacct -n -P -j "$job_id" --format=JobID,AllocCPUS,ReqMem,MaxRSS,TotalCPU 2>/dev/null \
         | awk -F '|' -v id="$job_id" '
+            function val(field) {
+                return field == "" ? "NA" : field
+            }
             $1 == id {
-                print $2 "\t" $3 "\t" $4 "\t" $5
+                print val($2) "\t" val($3) "\t" val($4) "\t" val($5)
                 found = 1
                 exit
             }
             $1 !~ /\./ && candidate == "" {
-                candidate = $2 "\t" $3 "\t" $4 "\t" $5
+                candidate = val($2) "\t" val($3) "\t" val($4) "\t" val($5)
             }
             END {
                 if (!found && candidate != "") {

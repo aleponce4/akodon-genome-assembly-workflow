@@ -27,14 +27,14 @@ normalize_stage() {
 }
 
 chunk_at_index() {
-    local index="$1"
-    awk -v chunks="$CHUNKS" -v index="$index" '
+    local chunk_index="$1"
+    awk -v chunks="$CHUNKS" -v chunk_index="$chunk_index" '
         BEGIN {
             count = split(chunks, parts, ",")
-            if (index < 0 || index >= count) {
+            if (chunk_index < 0 || chunk_index >= count) {
                 exit 1
             }
-            print parts[index + 1]
+            print parts[chunk_index + 1]
         }
     '
 }
@@ -42,6 +42,14 @@ chunk_at_index() {
 job_dependency_from_manifest() {
     local manifest="$1"
     awk -F '\t' 'NR > 1 && $3 != "" { ids = ids (ids ? ":" : "") $3 } END { print ids }' "$manifest"
+}
+
+ensure_manifest_header() {
+    local manifest="$1"
+
+    if [[ ! -f "$manifest" ]]; then
+        printf 'stage_id\tstage_name\tjob_id\tdependency\tarray\tstdout\tstderr\tscript\n' > "$manifest"
+    fi
 }
 
 chunk="$(chunk_at_index "$CHUNK_INDEX")" || die "No stage chunk found at index $CHUNK_INDEX in: $CHUNKS"
@@ -69,8 +77,9 @@ if next_chunk="$(chunk_at_index "$next_index")"; then
     next_end="$(normalize_stage "${next_chunk#*-}")"
     submitter_log="$LOG_DIR/chained_submit_${CHAIN_RUN_ID}_stage${next_start}_${next_end}_%j.out"
     submitter_err="$LOG_DIR/chained_submit_${CHAIN_RUN_ID}_stage${next_start}_${next_end}_%j.err"
+    chain_manifest="$LOG_DIR/submissions/chain_${CHAIN_RUN_ID}_submitters.tsv"
 
-    submitter_job_id="$(sbatch \
+    if ! submitter_job_id="$(sbatch \
         --parsable \
         --account="$SBATCH_ACCOUNT" \
         --dependency="afterok:$dependency" \
@@ -83,7 +92,15 @@ if next_chunk="$(chunk_at_index "$next_index")"; then
         --output="$submitter_log" \
         --error="$submitter_err" \
         --export=ALL \
-        "$SCRIPT_DIR/scripts/submit_stage_chunk_and_chain.sh" "$CONFIG_PATH" "$CHUNKS" "$next_index" "$CHAIN_RUN_ID")"
+        "$SCRIPT_DIR/scripts/submit_stage_chunk_and_chain.sh" "$CONFIG_PATH" "$CHUNKS" "$next_index" "$CHAIN_RUN_ID")"; then
+        die "sbatch failed while queuing submitter for chunk ${next_chunk}. Current chunk manifest: $manifest"
+    fi
+    [[ -n "$submitter_job_id" ]] || die "sbatch returned an empty job id while queuing submitter for chunk ${next_chunk}. Current chunk manifest: $manifest"
+
+    ensure_manifest_header "$chain_manifest"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "chain" "submit_${next_start}_${next_end}" "$submitter_job_id" "$dependency" "" "$submitter_log" "$submitter_err" \
+        "$SCRIPT_DIR/scripts/submit_stage_chunk_and_chain.sh" >> "$chain_manifest"
 
     printf '\nNext chunk submitter queued:\n'
     printf '  Chunk: %s\n' "$next_chunk"

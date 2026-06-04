@@ -19,7 +19,10 @@ report_txt="$report_dir/run_report_$timestamp.txt"
 resource_tsv="$report_dir/run_report_$timestamp.resources.tsv"
 manifest_list="$report_dir/run_report_$timestamp.manifests.txt"
 
-mapfile -t manifests < <(find "$LOG_DIR/submissions" -maxdepth 1 -type f -name 'run_*_jobs.tsv' 2>/dev/null | sort)
+mapfile -t manifests < <(
+    find "$LOG_DIR/submissions" -maxdepth 1 -type f \
+        \( -name 'run_*_jobs.tsv' -o -name 'chain_*_submitters.tsv' \) 2>/dev/null | sort
+)
 
 {
     printf 'Akodon pipeline run report\n'
