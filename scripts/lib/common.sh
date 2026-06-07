@@ -220,7 +220,11 @@ ensure_supernova_runtime_libs() {
 
     if truthy "${SUPERNOVA_PATCH_RUNTIME_LIBS:-1}"; then
         for spec in \
+            "libbz2.so.1.0:libbz2.so.1.0.6" \
+            "libcurl.so.4:libcurl.so.4.5.0" \
             "libgfortran.so.4:libgfortran.so.4.0.0" \
+            "libhts.so.2:libhts.so.1.7" \
+            "liblzma.so.5:liblzma.so.5.2.4" \
             "libquadmath.so.0:libquadmath.so.0.0.0"
         do
             link_name="${spec%%:*}"
