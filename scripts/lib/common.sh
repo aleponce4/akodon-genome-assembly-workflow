@@ -210,6 +210,34 @@ supernova_asmdir() {
     printf '%s/outs/assembly' "$(supernova_run_dir "$fastq_sample")"
 }
 
+ensure_supernova_runtime_libs() {
+    local link_name
+    local target_name
+    local link_path
+    local target_path
+
+    [[ -d "$SUPERNOVA_LIB_DIR" ]] || die "Supernova runtime library directory not found: $SUPERNOVA_LIB_DIR"
+
+    if truthy "${SUPERNOVA_PATCH_RUNTIME_LIBS:-1}"; then
+        for spec in \
+            "libgfortran.so.4:libgfortran.so.4.0.0" \
+            "libquadmath.so.0:libquadmath.so.0.0.0"
+        do
+            link_name="${spec%%:*}"
+            target_name="${spec#*:}"
+            link_path="$SUPERNOVA_LIB_DIR/$link_name"
+            target_path="$SUPERNOVA_LIB_DIR/$target_name"
+
+            if [[ ! -e "$link_path" && -e "$target_path" ]]; then
+                ln -s "$target_name" "$link_path"
+            fi
+        done
+    fi
+
+    [[ -e "$SUPERNOVA_LIB_DIR/libgfortran.so.4" ]] || die "Supernova runtime library missing: $SUPERNOVA_LIB_DIR/libgfortran.so.4"
+    export LD_LIBRARY_PATH="$SUPERNOVA_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+}
+
 pseudohap_prefix() {
     local sample_id="$1"
     printf '%s/%s' "$PSEUDOHAP_DIR" "$(assembly_stem "$sample_id")"

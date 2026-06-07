@@ -306,6 +306,9 @@ check_fastqs
 check_rna_fastqs
 
 check_executable_path "supernova_bin" "$SUPERNOVA_BIN"
+if ensure_supernova_runtime_libs; then
+    record_check "supernova_runtime_libs" "OK" "$SUPERNOVA_LIB_DIR"
+fi
 check_command_or_path "quast_bin" "${QUAST_ENV_PREFIX:-}/bin/quast.py" "$QUAST_BIN"
 check_command_or_path "busco_bin" "${BUSCO_ENV_PREFIX:-}/bin/busco" busco
 check_command_or_path "multiqc_bin" "${MULTIQC_ENV_PREFIX:-}/bin/multiqc" multiqc

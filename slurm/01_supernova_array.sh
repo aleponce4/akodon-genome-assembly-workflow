@@ -33,6 +33,7 @@ fi
 
 [[ -x "$SUPERNOVA_BIN" ]] || die "Supernova executable not found: $SUPERNOVA_BIN"
 [[ -d "$DATA_DIR" ]] || die "FASTQ directory not found: $DATA_DIR"
+ensure_supernova_runtime_libs
 
 log "Running Supernova for sample $sample_id ($fastq_sample)"
 cd "$SUPERNOVA_RUN_DIR"
