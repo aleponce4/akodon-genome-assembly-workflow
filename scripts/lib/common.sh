@@ -215,10 +215,24 @@ ensure_supernova_runtime_libs() {
     local target_name
     local link_path
     local target_path
+    local lib_file
+    local soname
 
     [[ -d "$SUPERNOVA_LIB_DIR" ]] || die "Supernova runtime library directory not found: $SUPERNOVA_LIB_DIR"
 
     if truthy "${SUPERNOVA_PATCH_RUNTIME_LIBS:-1}"; then
+        if command -v readelf >/dev/null 2>&1; then
+            while IFS= read -r lib_file; do
+                soname="$(readelf -d "$lib_file" 2>/dev/null | awk -F'[][]' '/SONAME/ { print $2; exit }')"
+                [[ -n "$soname" ]] || continue
+                link_path="$SUPERNOVA_LIB_DIR/$soname"
+
+                if [[ ! -e "$link_path" || -L "$link_path" ]]; then
+                    ln -sfn "$(basename "$lib_file")" "$link_path"
+                fi
+            done < <(find "$SUPERNOVA_LIB_DIR" -maxdepth 1 -type f -name 'lib*.so*' | sort)
+        fi
+
         for spec in \
             "libbz2.so.1.0:libbz2.so.1.0.6" \
             "libcurl.so.4:libcurl.so.4.5.0" \
@@ -232,14 +246,27 @@ ensure_supernova_runtime_libs() {
             link_path="$SUPERNOVA_LIB_DIR/$link_name"
             target_path="$SUPERNOVA_LIB_DIR/$target_name"
 
-            if [[ ! -e "$link_path" && -e "$target_path" ]]; then
-                ln -s "$target_name" "$link_path"
+            if [[ (! -e "$link_path" || -L "$link_path") && -e "$target_path" ]]; then
+                ln -sfn "$target_name" "$link_path"
             fi
         done
     fi
 
     [[ -e "$SUPERNOVA_LIB_DIR/libgfortran.so.4" ]] || die "Supernova runtime library missing: $SUPERNOVA_LIB_DIR/libgfortran.so.4"
     export LD_LIBRARY_PATH="$SUPERNOVA_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+}
+
+supernova_python_import_probe() {
+    ensure_supernova_runtime_libs
+    [[ -x "$SUPERNOVA_PYTHON_BIN" ]] || die "Supernova bundled Python not found: $SUPERNOVA_PYTHON_BIN"
+    [[ -d "$SUPERNOVA_TENKIT_PYTHONPATH" ]] || die "Supernova tenkit Python path not found: $SUPERNOVA_TENKIT_PYTHONPATH"
+
+    PYTHONPATH="$SUPERNOVA_TENKIT_PYTHONPATH${PYTHONPATH:+:$PYTHONPATH}" "$SUPERNOVA_PYTHON_BIN" - <<'PY'
+import scipy.special
+import pysam
+import tenkit.bam
+print("supernova python imports OK")
+PY
 }
 
 pseudohap_prefix() {

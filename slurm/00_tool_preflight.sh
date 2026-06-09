@@ -309,6 +309,11 @@ check_executable_path "supernova_bin" "$SUPERNOVA_BIN"
 if ensure_supernova_runtime_libs; then
     record_check "supernova_runtime_libs" "OK" "$SUPERNOVA_LIB_DIR"
 fi
+if detail="$(timeout 120s bash -c 'source "$1"; source_config "$2"; supernova_python_import_probe' bash "$PIPELINE_ROOT/scripts/lib/common.sh" "$CONFIG_PATH" 2>&1 | head -n 1)"; then
+    record_check "supernova_python_imports" "OK" "${detail:-supernova python imports OK}"
+else
+    record_check "supernova_python_imports" "FAIL" "${detail:-Supernova Python import probe failed}"
+fi
 check_command_or_path "quast_bin" "${QUAST_ENV_PREFIX:-}/bin/quast.py" "$QUAST_BIN"
 check_command_or_path "busco_bin" "${BUSCO_ENV_PREFIX:-}/bin/busco" busco
 check_command_or_path "multiqc_bin" "${MULTIQC_ENV_PREFIX:-}/bin/multiqc" multiqc
