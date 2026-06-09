@@ -223,7 +223,7 @@ ensure_supernova_runtime_libs() {
     if truthy "${SUPERNOVA_PATCH_RUNTIME_LIBS:-1}"; then
         if command -v readelf >/dev/null 2>&1; then
             while IFS= read -r lib_file; do
-                soname="$(readelf -d "$lib_file" 2>/dev/null | awk -F'[][]' '/SONAME/ { print $2; exit }')"
+                soname="$(readelf -d "$lib_file" 2>/dev/null | awk -F'[][]' '/SONAME/ { print $2; exit }' || true)"
                 [[ -n "$soname" ]] || continue
                 link_path="$SUPERNOVA_LIB_DIR/$soname"
 
