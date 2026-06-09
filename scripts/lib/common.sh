@@ -246,13 +246,23 @@ ensure_supernova_runtime_libs() {
             link_path="$SUPERNOVA_LIB_DIR/$link_name"
             target_path="$SUPERNOVA_LIB_DIR/$target_name"
 
-            if [[ (! -e "$link_path" || -L "$link_path") && -e "$target_path" ]]; then
+            if [[ -e "$link_path" && ! -L "$link_path" ]]; then
+                continue
+            fi
+
+            if [[ ! -e "$target_path" ]]; then
+                die "Supernova runtime library target missing for $link_name: $target_path"
+            fi
+
+            if [[ ! -e "$link_path" || -L "$link_path" ]]; then
                 ln -sfn "$target_name" "$link_path"
             fi
         done
     fi
 
-    [[ -e "$SUPERNOVA_LIB_DIR/libgfortran.so.4" ]] || die "Supernova runtime library missing: $SUPERNOVA_LIB_DIR/libgfortran.so.4"
+    for link_name in libbz2.so.1.0 libcurl.so.4 libgfortran.so.4 libhts.so.2 liblzma.so.5 libquadmath.so.0; do
+        [[ -e "$SUPERNOVA_LIB_DIR/$link_name" ]] || die "Supernova runtime library missing: $SUPERNOVA_LIB_DIR/$link_name"
+    done
     export LD_LIBRARY_PATH="$SUPERNOVA_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 }
 
