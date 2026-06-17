@@ -33,7 +33,7 @@ fi
 command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not found: $SINGULARITY_BIN"
 
 log "Building RepeatModeler database for sample $sample_id"
-"$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" BuildDatabase -name "$database_name" -engine ncbi "$input_fasta"
+"$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" BuildDatabase -name "$database_name" "$input_fasta"
 
 log "Running RepeatModeler for sample $sample_id"
 repeatmodeler_args=(
