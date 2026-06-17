@@ -714,15 +714,15 @@ load_module_if_available() {
 
 activate_quast_env() {
     if [[ -n "${QUAST_ENV_PREFIX:-}" && -d "${QUAST_ENV_PREFIX:-}" ]]; then
-        [[ -f "$QUAST_ENV_PREFIX/bin/activate" ]] || die "QUAST activate script not found: $QUAST_ENV_PREFIX/bin/activate"
-        # shellcheck disable=SC1090
-        source "$QUAST_ENV_PREFIX/bin/activate"
-
         if [[ -x "$QUAST_ENV_PREFIX/bin/quast.py" ]]; then
             QUAST_BIN="$QUAST_ENV_PREFIX/bin/quast.py"
+        elif [[ -f "$QUAST_ENV_PREFIX/bin/activate" ]]; then
+            # shellcheck disable=SC1090
+            source "$QUAST_ENV_PREFIX/bin/activate"
+        else
+            activate_conda_env "${QUAST_ENV:-quast_env}" "$QUAST_ENV_PREFIX"
         fi
     elif [[ -n "${QUAST_VENV_ACTIVATE:-}" && -f "${QUAST_VENV_ACTIVATE:-}" ]]; then
-        [[ -f "$QUAST_VENV_ACTIVATE" ]] || die "QUAST activate script not found: $QUAST_VENV_ACTIVATE"
         # shellcheck disable=SC1090
         source "$QUAST_VENV_ACTIVATE"
     else
