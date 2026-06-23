@@ -14,11 +14,11 @@ container_famdb="/opt/RepeatMasker/Libraries/famdb"
 partition="${REPEATMASKER_FAMDB_PARTITION:-7}"
 base_url="${DFAM_FAMDB_BASE_URL:-https://www.dfam.org/releases/Dfam_3.8/families/FamDB}"
 
-[[ -f "$REPEATMODELER_IMAGE" ]] || die "RepeatModeler/RepeatMasker image not found: $REPEATMODELER_IMAGE"
-command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not found: $SINGULARITY_BIN"
 ensure_dir "$REPEATMASKER_FAMDB_DIR"
 
 if ! find "$REPEATMASKER_FAMDB_DIR" -maxdepth 1 -type f -name '*.h5' | grep -q .; then
+    [[ -f "$REPEATMODELER_IMAGE" ]] || die "RepeatModeler/RepeatMasker image not found: $REPEATMODELER_IMAGE"
+    command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not found: $SINGULARITY_BIN. Run this helper first on a node with Singularity to copy the container FamDB root, then rerun it on the DTN to download partition $partition."
     log "Copying existing container FamDB files to $REPEATMASKER_FAMDB_DIR"
     "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" \
         bash -lc "cd '$container_famdb' && tar cf - ." | tar -C "$REPEATMASKER_FAMDB_DIR" -xf -
