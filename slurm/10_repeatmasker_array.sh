@@ -65,31 +65,37 @@ fi
 [[ -f "$REPEATMODELER_IMAGE" ]] || die "RepeatMasker image not found: $REPEATMODELER_IMAGE"
 command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not found: $SINGULARITY_BIN"
 
-log "RepeatMasker round 1 for sample $sample_id"
 cd "$masker_output_dir"
-"$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatMasker \
-    -pa "$repeatmasker_threads" \
-    -noint \
-    -xsmall \
-    -gff \
-    -species "$REPEATMASKER_SPECIES" \
-    -dir "$masker_output_dir" \
-    "$input_fasta"
-rename_repeatmasker_outputs "$masker_output_dir" "$sample_base" "$sample_base.round1_simple_dfam"
+if truthy "$REPEATMASKER_ENABLE_DFAM_ROUNDS"; then
+    log "RepeatMasker round 1 for sample $sample_id"
+    "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatMasker \
+        -pa "$repeatmasker_threads" \
+        -noint \
+        -xsmall \
+        -gff \
+        -species "$REPEATMASKER_SPECIES" \
+        -dir "$masker_output_dir" \
+        "$input_fasta"
+    rename_repeatmasker_outputs "$masker_output_dir" "$sample_base" "$sample_base.round1_simple_dfam"
 
-round2_input="$masker_output_dir/$sample_base.round1_simple_dfam.masked"
-round2_source="$(basename "$round2_input")"
+    round2_input="$masker_output_dir/$sample_base.round1_simple_dfam.masked"
+    round2_source="$(basename "$round2_input")"
 
-log "RepeatMasker round 2 for sample $sample_id"
-"$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatMasker \
-    -pa "$repeatmasker_threads" \
-    -nolow \
-    -xsmall \
-    -gff \
-    -species "$REPEATMASKER_SPECIES" \
-    -dir "$masker_output_dir" \
-    "$round2_input"
-rename_repeatmasker_outputs "$masker_output_dir" "$round2_source" "$sample_base.round2_complex_dfam"
+    log "RepeatMasker round 2 for sample $sample_id"
+    "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatMasker \
+        -pa "$repeatmasker_threads" \
+        -nolow \
+        -xsmall \
+        -gff \
+        -species "$REPEATMASKER_SPECIES" \
+        -dir "$masker_output_dir" \
+        "$round2_input"
+    rename_repeatmasker_outputs "$masker_output_dir" "$round2_source" "$sample_base.round2_complex_dfam"
+else
+    log "Skipping RepeatMasker Dfam species rounds for sample $sample_id"
+    skip_library_round "$input_fasta" "$sample_base.round1_simple_dfam" "Dfam species rounds disabled; source FamDB partition is unavailable."
+    skip_library_round "$masker_output_dir/$sample_base.round1_simple_dfam.masked" "$sample_base.round2_complex_dfam" "Dfam species rounds disabled; source FamDB partition is unavailable."
+fi
 
 round3_input="$masker_output_dir/$sample_base.round2_complex_dfam.masked"
 round3_source="$(basename "$round3_input")"

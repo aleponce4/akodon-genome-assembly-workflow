@@ -412,6 +412,7 @@ fi
 
 printf 'BUSCO_LINEAGE\t%s\n' "$BUSCO_LINEAGE_DIR" >> "$versions_tsv"
 printf 'REPEATMASKER_SPECIES\t%s\n' "$REPEATMASKER_SPECIES" >> "$versions_tsv"
+printf 'REPEATMASKER_ENABLE_DFAM_ROUNDS\t%s\n' "$REPEATMASKER_ENABLE_DFAM_ROUNDS" >> "$versions_tsv"
 
 if (( failures > 0 )); then
     die "Preflight found $failures problem(s). See $checks_tsv"
