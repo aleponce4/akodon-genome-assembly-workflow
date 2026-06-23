@@ -322,6 +322,9 @@ check_command_or_path "repeat_cd_hit" "${REPEAT_ENV_PREFIX:-}/bin/cd-hit-est" cd
 check_command_or_path "repeat_seqkit" "${REPEAT_ENV_PREFIX:-}/bin/seqkit" seqkit
 check_dir "busco_lineage" "$BUSCO_LINEAGE_DIR"
 check_file "repeatmodeler_image" "$REPEATMODELER_IMAGE"
+if truthy "$REPEATMASKER_ENABLE_DFAM_ROUNDS"; then
+    check_dir "repeatmasker_famdb_dir" "$REPEATMASKER_FAMDB_DIR"
+fi
 
 if truthy "$ENABLE_ANNOTATION"; then
     check_file "header_simplifier" "$GENOME_HEADER_SIMPLIFIER"
@@ -413,6 +416,7 @@ fi
 printf 'BUSCO_LINEAGE\t%s\n' "$BUSCO_LINEAGE_DIR" >> "$versions_tsv"
 printf 'REPEATMASKER_SPECIES\t%s\n' "$REPEATMASKER_SPECIES" >> "$versions_tsv"
 printf 'REPEATMASKER_ENABLE_DFAM_ROUNDS\t%s\n' "$REPEATMASKER_ENABLE_DFAM_ROUNDS" >> "$versions_tsv"
+printf 'REPEATMASKER_FAMDB_DIR\t%s\n' "$REPEATMASKER_FAMDB_DIR" >> "$versions_tsv"
 
 if (( failures > 0 )); then
     die "Preflight found $failures problem(s). See $checks_tsv"

@@ -65,10 +65,17 @@ fi
 [[ -f "$REPEATMODELER_IMAGE" ]] || die "RepeatMasker image not found: $REPEATMODELER_IMAGE"
 command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not found: $SINGULARITY_BIN"
 
+repeatmasker_container_args=(exec)
+if [[ -n "${REPEATMASKER_FAMDB_DIR:-}" && -d "${REPEATMASKER_FAMDB_DIR:-}" ]]; then
+    repeatmasker_container_args+=(--bind "$REPEATMASKER_FAMDB_DIR:/opt/RepeatMasker/Libraries/famdb")
+elif truthy "$REPEATMASKER_ENABLE_DFAM_ROUNDS"; then
+    die "RepeatMasker Dfam rounds are enabled, but REPEATMASKER_FAMDB_DIR is missing: ${REPEATMASKER_FAMDB_DIR:-unset}"
+fi
+
 cd "$masker_output_dir"
 if truthy "$REPEATMASKER_ENABLE_DFAM_ROUNDS"; then
     log "RepeatMasker round 1 for sample $sample_id"
-    "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatMasker \
+    "$SINGULARITY_BIN" "${repeatmasker_container_args[@]}" "$REPEATMODELER_IMAGE" RepeatMasker \
         -pa "$repeatmasker_threads" \
         -noint \
         -xsmall \
@@ -82,7 +89,7 @@ if truthy "$REPEATMASKER_ENABLE_DFAM_ROUNDS"; then
     round2_source="$(basename "$round2_input")"
 
     log "RepeatMasker round 2 for sample $sample_id"
-    "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatMasker \
+    "$SINGULARITY_BIN" "${repeatmasker_container_args[@]}" "$REPEATMODELER_IMAGE" RepeatMasker \
         -pa "$repeatmasker_threads" \
         -nolow \
         -xsmall \
@@ -103,7 +110,7 @@ round3_target="$sample_base.round3_known_repeats"
 
 if [[ -s "$known_repeats" ]]; then
     log "RepeatMasker round 3 for sample $sample_id"
-    "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatMasker \
+    "$SINGULARITY_BIN" "${repeatmasker_container_args[@]}" "$REPEATMODELER_IMAGE" RepeatMasker \
         -pa "$repeatmasker_threads" \
         -xsmall \
         -gff \
@@ -122,7 +129,7 @@ round4_target="$sample_base.round4_unknown_repeats"
 
 if [[ -s "$unknown_repeats" ]]; then
     log "RepeatMasker round 4 for sample $sample_id"
-    "$SINGULARITY_BIN" exec "$REPEATMODELER_IMAGE" RepeatMasker \
+    "$SINGULARITY_BIN" "${repeatmasker_container_args[@]}" "$REPEATMODELER_IMAGE" RepeatMasker \
         -pa "$repeatmasker_threads" \
         -xsmall \
         -gff \
