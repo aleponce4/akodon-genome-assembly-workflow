@@ -12,7 +12,6 @@ source_config "$CONFIG_PATH"
 
 container_famdb="/opt/RepeatMasker/Libraries/famdb"
 partition="${REPEATMASKER_FAMDB_PARTITION:-7}"
-base_url="${DFAM_FAMDB_BASE_URL:-https://www.dfam.org/releases/Dfam_3.8/families/FamDB}"
 
 ensure_dir "$REPEATMASKER_FAMDB_DIR"
 
@@ -29,6 +28,13 @@ root_file="$(find "$REPEATMASKER_FAMDB_DIR" -maxdepth 1 -type f -name '*_full.0.
 
 root_name="$(basename "$root_file")"
 prefix="${root_name%.0.h5}"
+if [[ -n "${DFAM_FAMDB_BASE_URL:-}" ]]; then
+    base_url="$DFAM_FAMDB_BASE_URL"
+elif [[ "$prefix" =~ ^dfam([0-9])([0-9])_full$ ]]; then
+    base_url="https://www.dfam.org/releases/Dfam_${BASH_REMATCH[1]}.${BASH_REMATCH[2]}/families/FamDB"
+else
+    die "Could not infer Dfam release URL from FamDB root file: $root_name. Set DFAM_FAMDB_BASE_URL explicitly."
+fi
 target_h5="$REPEATMASKER_FAMDB_DIR/${prefix}.${partition}.h5"
 target_gz="$target_h5.gz"
 
