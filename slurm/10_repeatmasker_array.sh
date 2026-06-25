@@ -45,6 +45,7 @@ masker_output_dir="$(repeatmasker_workdir "$sample_id")"
 known_repeats="$(known_repeat_library)"
 unknown_repeats="$(unknown_repeat_library)"
 repeatmasker_threads="${SLURM_CPUS_PER_TASK:-$REPEATMASKER_CPUS}"
+final_masked_output="$(repeatmasker_final_masked "$sample_id")"
 
 ensure_dir "$masker_output_dir"
 
@@ -58,6 +59,11 @@ if smoke_mode; then
     done
     final_masked_output="$(repeatmasker_final_masked "$sample_id")"
     [[ -e "$final_masked_output" ]] || die "RepeatMasker final masked output was not created: $final_masked_output"
+    exit 0
+fi
+
+if [[ -s "$final_masked_output" && "${REPEATMASKER_OVERWRITE:-0}" != "1" ]]; then
+    log "Final RepeatMasker output already exists for sample $sample_id; skipping. Set REPEATMASKER_OVERWRITE=1 to rerun."
     exit 0
 fi
 
@@ -142,5 +148,4 @@ else
     skip_library_round "$round4_input" "$round4_target" "Unknown repeat library was empty; round skipped."
 fi
 
-final_masked_output="$(repeatmasker_final_masked "$sample_id")"
 [[ -e "$final_masked_output" ]] || die "RepeatMasker final masked output was not created: $final_masked_output"
