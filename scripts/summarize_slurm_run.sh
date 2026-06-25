@@ -27,7 +27,26 @@ status_for_job() {
 
     local line
     line="$(sacct -n -P -j "$job_id" --format=JobID,State,ExitCode,Elapsed 2>/dev/null \
-        | awk -F '|' '$1 !~ /\./ { print $2 "\t" $3 "\t" $4; exit }')"
+        | awk -F '|' -v id="$job_id" '
+            $1 ~ /\./ { next }
+            !($1 == id || index($1, id "_") == 1) { next }
+            {
+                count++
+                if ($2 != "COMPLETED" && first_bad == "") {
+                    first_bad = $2 "\t" $3 "\t" $4
+                }
+                if ($2 == "COMPLETED" && first_completed == "") {
+                    first_completed = $2 "\t" $3 "\t" $4
+                }
+            }
+            END {
+                if (first_bad != "") {
+                    print first_bad
+                } else if (first_completed != "") {
+                    print first_completed
+                }
+            }
+        ')"
 
     if [[ -n "$line" ]]; then
         printf '%s\n' "$line"
