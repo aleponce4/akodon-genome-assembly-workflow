@@ -18,6 +18,7 @@ sample_id="$(sample_id_by_index "$sample_index")"
 input_fasta="$(filtered_fasta "$sample_id")"
 output_name="$(assembly_stem "$sample_id")"
 sample_output_dir="$(busco_sample_dir "$sample_id")"
+summary_file="$sample_output_dir/short_summary.specific.glires_odb10.${output_name}.txt"
 
 if smoke_mode; then
     log "Smoke mode: creating mock BUSCO output"
@@ -33,6 +34,11 @@ activate_conda_env "$BUSCO_ENV" "${BUSCO_ENV_PREFIX:-}"
 
 [[ -f "$input_fasta" ]] || die "Filtered FASTA not found: $input_fasta"
 [[ -d "$BUSCO_LINEAGE_DIR" ]] || die "BUSCO lineage directory not found: $BUSCO_LINEAGE_DIR"
+
+if [[ -s "$summary_file" && "${BUSCO_OVERWRITE:-0}" != "1" ]]; then
+    log "BUSCO summary already exists for sample $sample_id; skipping. Set BUSCO_OVERWRITE=1 to rerun."
+    exit 0
+fi
 
 log "Running BUSCO for sample $sample_id"
 cd "$BUSCO_DIR"
