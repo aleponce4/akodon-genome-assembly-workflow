@@ -160,7 +160,7 @@ record_conda_version() {
     local detail
 
     set +e
-    detail="$((
+    detail="$( (
         activate_conda_env "$env_name" "$env_prefix" >/dev/null
         timeout 30s "$@"
     ) 2>&1)"
