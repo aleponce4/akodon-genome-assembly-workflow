@@ -78,4 +78,7 @@ if truthy "$ENABLE_ANNOTATION"; then
     fi
 fi
 
+bash "$SCRIPT_DIR/scripts/verify_smoke_test_outputs.sh" "$CONFIG_PATH"
+
 printf 'Smoke test completed.\n'
+

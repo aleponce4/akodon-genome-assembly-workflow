@@ -18,3 +18,5 @@ old_job_scripts/
 annotation/singularity_images/*.sif
 annotation_functional/data/bin/*.sif
 Repeat_modeler_container/
+__pycache__/
+.pytest_cache/

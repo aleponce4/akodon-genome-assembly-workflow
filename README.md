@@ -1,9 +1,49 @@
 # Akodon Genome Assembly and Annotation Workflow
 
-Slurm workflow for assembly, repeat annotation, structural annotation, and functional annotation of an *Akodon* genome. This repository reorganizes previously separate HPC job scripts into one reproducible workflow.
+[![CI](https://github.com/apflores/akodon-genome-assembly-workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/apflores/akodon-genome-assembly-workflow/actions/workflows/ci.yml)
 
+SLURM workflow for assembly, repeat annotation, structural annotation, and functional annotation of an *Akodon* genome. This repository represents a completed case study snapshot reorganizing HPC job scripts into a reproducible workflow.
 
-## Workflow
+## Overview & Architecture
+
+The workflow is natively orchestrated via SLURM Bash scripts, utilizing job arrays (`--array`), explicit dependency chains (`--dependency=afterok`), and submission manifests. Native SLURM orchestration was selected to provide fine-grained control over job array bounds, queue submission throttling (`run_pipeline_chained.sh`), and stage recovery on institutional HPC clusters without requiring external workflow engine runtime dependencies.
+
+```mermaid
+flowchart TD
+    subgraph Preflight ["Preflight & Assembly"]
+        S00["00: Preflight Checks"] --> S01["01: Supernova Array"]
+        S01 --> S02["02: Mkoutput Array"]
+        S02 --> S03["03: Filter FASTA Array"]
+    end
+
+    subgraph QualityControl ["Quality Control"]
+        S03 --> S04["04: QUAST Summary"]
+        S03 --> S05["05: BUSCO Array"]
+        S05 --> S06["06: BUSCO Plotting"]
+        S04 & S05 --> S07["07: MultiQC Report"]
+    end
+
+    subgraph RepeatAnnotation ["Repeat Masking"]
+        S03 --> S08["08: RepeatModeler Array"]
+        S08 --> S09["09: Merge Repeat Libraries"]
+        S09 --> S10["10: RepeatMasker Array"]
+    end
+
+    subgraph StructuralAnnotation ["Gene Prediction & Annotation"]
+        S10 --> S11["11: Simplify Genome Headers"]
+        S11 --> S12["12: Download Reference Proteins"]
+        S12 --> S13["13: Prepare Protein Evidence"]
+        S13 --> S14["14: GALBA Predictor"]
+        S11 --> S15["15: HISAT2 RNA Alignment"]
+        S13 & S15 --> S16["16: BRAKER3 Predictor"]
+        S14 & S16 --> S17["17: TSEBRA Model Integration"]
+        S17 --> S18["18: Isoform Filtering"]
+        S18 --> S19["19: Restore Header Names"]
+        S19 --> S20["20: InterProScan Functional"]
+    end
+```
+
+## Workflow Stages
 
 Assembly:
 
@@ -25,7 +65,7 @@ Annotation:
 12. **NCBI Datasets**: downloads reference protein datasets listed in the input TSV.
 13. **simplifyFastaHeaders.pl**: merges and simplifies reference protein FASTA files.
 14. **GALBA**: predicts genes with protein evidence.
-15. **BRAKER2**: optional protein-evidence predictor, off by default.
+15. **BRAKER2**: optional protein-evidence predictor (disabled by default in favor of GALBA).
 15. **HISAT2/samtools**: aligns RNA-seq reads to each simplified assembly for BRAKER3 evidence.
 16. **BRAKER3**: predicts genes with RNA BAM and protein evidence.
 17. **TSEBRA**: combines selected GALBA/BRAKER prediction sets.
@@ -33,15 +73,15 @@ Annotation:
 19. **header restore**: writes final genome and GTF files with original contig names.
 20. **InterProScan**: adds functional annotations to the selected protein set.
 
-Notes:
+### Validation & Execution Scope
 
-- stages `14`, optional `15` BRAKER2, and `16` are prediction tracks; stage `15` also builds RNA BAM evidence for BRAKER3
-- the default annotation track is GALBA + BRAKER3 combined by TSEBRA
-- annotation runs for all samples by default, with sample-specific output folders
-- the annotation branch starts after RepeatMasker
-- Supernova should use raw, untrimmed 10x linked-read FASTQs
-- BRAKER3 RNA evidence uses the existing fastp-trimmed RNA-seq FASTQs by default
-- BRAKER3 BAMs must be aligned to the same simplified assembly headers used for that sample
+| Stage Group | Execution Environment | Validation Level | Notes |
+| :--- | :--- | :--- | :--- |
+| **Assembly (01–03)** | Institutional SLURM HPC | Real *Akodon* WGS Data | Validated on 4 10x linked-read samples |
+| **QC & Masking (04–10)** | Institutional SLURM HPC | Real *Akodon* Assembly Data | BUSCO (Glires), RepeatModeler library merge |
+| **Annotation (11–20)** | Institutional SLURM HPC | Real *Akodon* & Synthetic Fixtures | GALBA + BRAKER3 via TSEBRA model selection |
+| **Smoke Test Suite** | GitHub Actions & Local Shell | Mock File Contracts | End-to-end output assertion & header integrity check |
+
 
 Still to do:
 

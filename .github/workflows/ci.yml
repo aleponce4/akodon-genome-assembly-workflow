@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck
+        run: |
+          shellcheck -x run_pipeline.sh run_smoke_test.sh run_pipeline_chained.sh run_slurm_smoke_test.sh scripts/*.sh slurm/*.sh scripts/**/*.sh
+
+      - name: Run Bash syntax check
+        run: |
+          find . -name "*.sh" -exec bash -n {} +
+
+      - name: Run Python unit & contract tests
+        run: |
+          python3 tests/test_pipeline.py
+
+      - name: Run end-to-end smoke test & verify outputs
+        run: |
+          bash run_smoke_test.sh config/smoke_test.env
