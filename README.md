@@ -1,6 +1,6 @@
 # Akodon Genome Assembly and Annotation Workflow
 
-[![CI](https://github.com/apflores/akodon-genome-assembly-workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/apflores/akodon-genome-assembly-workflow/actions/workflows/ci.yml)
+[![CI](https://github.com/aleponce4/akodon-genome-assembly-workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/aleponce4/akodon-genome-assembly-workflow/actions/workflows/ci.yml)
 
 SLURM workflow for assembly, repeat annotation, structural annotation, and functional annotation of an *Akodon* genome. This repository represents a completed case study snapshot reorganizing HPC job scripts into a reproducible workflow.
 
