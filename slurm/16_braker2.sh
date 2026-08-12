@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 15: run BRAKER2 with protein evidence.
+# Stage 16: run BRAKER2 with protein evidence.
 
 set -euo pipefail
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 18: retain the longest isoform per model and export CDS/protein FASTA files.
+# Stage 19: retain the longest isoform per model and export CDS/protein FASTA files.
 
 set -euo pipefail
 

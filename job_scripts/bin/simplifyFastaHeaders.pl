@@ -1,5 +1,12 @@
 #!/usr/bin/perl
 
+# THIRD-PARTY FILE - NOT ORIGINAL TO THIS REPOSITORY.
+# Vendored from the AUGUSTUS project (https://github.com/Gaius-Augustus/Augustus),
+# which also ships it inside the BRAKER and GALBA distributions. It stays under
+# its upstream copyright and license (Artistic License 1.0) and is NOT covered
+# by this repository's MIT LICENSE. See THIRD_PARTY_NOTICES.md in the repository
+# root for the full attribution.
+
 # Katharina J. Hoff, Dec 3rd 2012
 #
 # Simply fasta headers for usage with web service or autoAug.pl

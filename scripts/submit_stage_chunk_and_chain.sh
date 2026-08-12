@@ -19,6 +19,7 @@ source_config "$CONFIG_PATH"
 ensure_base_dirs
 
 command -v sbatch >/dev/null 2>&1 || die "sbatch was not found on PATH."
+require_sbatch_account
 
 normalize_stage() {
     local stage="$1"

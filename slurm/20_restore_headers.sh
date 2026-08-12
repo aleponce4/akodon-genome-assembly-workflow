@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 19: restore original contig headers in annotation deliverables.
+# Stage 20: restore original contig headers in annotation deliverables.
 
 set -euo pipefail
 

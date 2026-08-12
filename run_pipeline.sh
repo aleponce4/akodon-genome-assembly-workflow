@@ -13,9 +13,10 @@ source_config "$CONFIG_PATH"
 ensure_base_dirs
 
 command -v sbatch >/dev/null 2>&1 || die "sbatch was not found on PATH."
+require_sbatch_account
 
 PIPELINE_START_STAGE="${PIPELINE_START_STAGE:-00}"
-PIPELINE_END_STAGE="${PIPELINE_END_STAGE:-20}"
+PIPELINE_END_STAGE="${PIPELINE_END_STAGE:-21}"
 PIPELINE_DEPENDENCY_JOB_ID="${PIPELINE_DEPENDENCY_JOB_ID:-}"
 PIPELINE_RUN_ID="${PIPELINE_RUN_ID:-$(date '+%Y%m%d_%H%M%S')_$$}"
 [[ "$PIPELINE_RUN_ID" =~ ^[A-Za-z0-9._-]+$ ]] || die "PIPELINE_RUN_ID may only contain letters, numbers, dot, underscore, and dash."
@@ -285,7 +286,7 @@ multiqc_job_id="$(submit_stage 07 multiqc "$multiqc_dependency" "" "$LOG_DIR/mul
     "$SCRIPT_DIR/slurm/07_multiqc.sh" "$CONFIG_PATH")"
 
 if truthy "$ENABLE_ANNOTATION"; then
-    if truthy "$ENABLE_TSEBRA" && stage_in_range 17; then
+    if truthy "$ENABLE_TSEBRA" && stage_in_range 18; then
         is_supported_tsebra_source "$TSEBRA_GTF1_SOURCE" || die "Unsupported TSEBRA_GTF1_SOURCE: $TSEBRA_GTF1_SOURCE"
         is_supported_tsebra_source "$TSEBRA_GTF2_SOURCE" || die "Unsupported TSEBRA_GTF2_SOURCE: $TSEBRA_GTF2_SOURCE"
         [[ "$TSEBRA_GTF1_SOURCE" != "$TSEBRA_GTF2_SOURCE" ]] || die "TSEBRA_GTF1_SOURCE and TSEBRA_GTF2_SOURCE must be different."
@@ -296,7 +297,7 @@ if truthy "$ENABLE_ANNOTATION"; then
         truthy "${!tsebra_gtf2_enable_var:-0}" || die "ENABLE_TSEBRA=1 requires ${tsebra_gtf2_enable_var}=1 for TSEBRA_GTF2_SOURCE=$TSEBRA_GTF2_SOURCE."
     fi
 
-    if truthy "$ENABLE_INTERPROSCAN" && stage_in_range 20 && ! truthy "$ENABLE_ISOFORM_FILTER" && [[ -z "$INTERPROSCAN_INPUT_FASTA" ]]; then
+    if truthy "$ENABLE_INTERPROSCAN" && stage_in_range 21 && ! truthy "$ENABLE_ISOFORM_FILTER" && [[ -z "$INTERPROSCAN_INPUT_FASTA" ]]; then
         die "ENABLE_INTERPROSCAN=1 without ENABLE_ISOFORM_FILTER requires INTERPROSCAN_INPUT_FASTA to be set."
     fi
 
@@ -354,21 +355,6 @@ if truthy "$ENABLE_ANNOTATION"; then
             "$SCRIPT_DIR/slurm/14_galba.sh" "$CONFIG_PATH")"
     fi
 
-    braker2_dependency="$(join_dependencies "$annotation_preprocess_job_id" "${annotation_protein_prep_job_id:-}")"
-    if truthy "$ENABLE_BRAKER2"; then
-        braker2_job_id="$(submit_stage 15 braker2 "$braker2_dependency" "$annotation_array" "$LOG_DIR/braker2_%A_%a.out" "$LOG_DIR/braker2_%A_%a.err" "$SCRIPT_DIR/slurm/15_braker2.sh" \
-            --job-name=akodon_braker2 \
-            --partition="$BRAKER2_PARTITION" \
-            --qos="$BRAKER2_QOS" \
-            --time="$BRAKER2_TIME" \
-            --cpus-per-task="$BRAKER2_CPUS" \
-            --mem="$BRAKER2_MEM" \
-            --array="$annotation_array" \
-            --output="$LOG_DIR/braker2_%A_%a.out" \
-            --error="$LOG_DIR/braker2_%A_%a.err" \
-            "$SCRIPT_DIR/slurm/15_braker2.sh" "$CONFIG_PATH")"
-    fi
-
     if truthy "$ENABLE_BRAKER3" && truthy "$ENABLE_RNA_ALIGNMENT"; then
         rna_align_job_id="$(submit_stage 15 rna_align_hisat2 "$annotation_preprocess_job_id" "$rna_align_array" "$LOG_DIR/rna_align_%A_%a.out" "$LOG_DIR/rna_align_%A_%a.err" "$SCRIPT_DIR/slurm/15_rna_align_hisat2_array.sh" \
             --job-name=akodon_rna_align \
@@ -383,9 +369,24 @@ if truthy "$ENABLE_ANNOTATION"; then
             "$SCRIPT_DIR/slurm/15_rna_align_hisat2_array.sh" "$CONFIG_PATH")"
     fi
 
+    braker2_dependency="$(join_dependencies "$annotation_preprocess_job_id" "${annotation_protein_prep_job_id:-}")"
+    if truthy "$ENABLE_BRAKER2"; then
+        braker2_job_id="$(submit_stage 16 braker2 "$braker2_dependency" "$annotation_array" "$LOG_DIR/braker2_%A_%a.out" "$LOG_DIR/braker2_%A_%a.err" "$SCRIPT_DIR/slurm/16_braker2.sh" \
+            --job-name=akodon_braker2 \
+            --partition="$BRAKER2_PARTITION" \
+            --qos="$BRAKER2_QOS" \
+            --time="$BRAKER2_TIME" \
+            --cpus-per-task="$BRAKER2_CPUS" \
+            --mem="$BRAKER2_MEM" \
+            --array="$annotation_array" \
+            --output="$LOG_DIR/braker2_%A_%a.out" \
+            --error="$LOG_DIR/braker2_%A_%a.err" \
+            "$SCRIPT_DIR/slurm/16_braker2.sh" "$CONFIG_PATH")"
+    fi
+
     if truthy "$ENABLE_BRAKER3"; then
         braker3_dependency="$(join_dependencies "$annotation_preprocess_job_id" "${rna_align_job_id:-}")"
-        braker3_job_id="$(submit_stage 16 braker3 "$braker3_dependency" "$annotation_array" "$LOG_DIR/braker3_%A_%a.out" "$LOG_DIR/braker3_%A_%a.err" "$SCRIPT_DIR/slurm/16_braker3.sh" \
+        braker3_job_id="$(submit_stage 17 braker3 "$braker3_dependency" "$annotation_array" "$LOG_DIR/braker3_%A_%a.out" "$LOG_DIR/braker3_%A_%a.err" "$SCRIPT_DIR/slurm/17_braker3.sh" \
             --job-name=akodon_braker3 \
             --partition="$BRAKER3_PARTITION" \
             --qos="$BRAKER3_QOS" \
@@ -395,12 +396,12 @@ if truthy "$ENABLE_ANNOTATION"; then
             --array="$annotation_array" \
             --output="$LOG_DIR/braker3_%A_%a.out" \
             --error="$LOG_DIR/braker3_%A_%a.err" \
-            "$SCRIPT_DIR/slurm/16_braker3.sh" "$CONFIG_PATH")"
+            "$SCRIPT_DIR/slurm/17_braker3.sh" "$CONFIG_PATH")"
     fi
 
     if truthy "$ENABLE_TSEBRA"; then
         tsebra_dependency="$(join_dependencies "${galba_job_id:-}" "${braker2_job_id:-}" "${braker3_job_id:-}")"
-        tsebra_job_id="$(submit_stage 17 tsebra "$tsebra_dependency" "$annotation_array" "$LOG_DIR/tsebra_%A_%a.out" "$LOG_DIR/tsebra_%A_%a.err" "$SCRIPT_DIR/slurm/17_tsebra.sh" \
+        tsebra_job_id="$(submit_stage 18 tsebra "$tsebra_dependency" "$annotation_array" "$LOG_DIR/tsebra_%A_%a.out" "$LOG_DIR/tsebra_%A_%a.err" "$SCRIPT_DIR/slurm/18_tsebra.sh" \
             --job-name=akodon_tsebra \
             --partition="$TSEBRA_PARTITION" \
             --qos="$TSEBRA_QOS" \
@@ -410,12 +411,12 @@ if truthy "$ENABLE_ANNOTATION"; then
             --array="$annotation_array" \
             --output="$LOG_DIR/tsebra_%A_%a.out" \
             --error="$LOG_DIR/tsebra_%A_%a.err" \
-            "$SCRIPT_DIR/slurm/17_tsebra.sh" "$CONFIG_PATH")"
+            "$SCRIPT_DIR/slurm/18_tsebra.sh" "$CONFIG_PATH")"
     fi
 
     if truthy "$ENABLE_ISOFORM_FILTER"; then
         isoform_dependency="$(join_dependencies "${galba_job_id:-}" "${braker2_job_id:-}" "${braker3_job_id:-}" "${tsebra_job_id:-}")"
-        isoform_job_id="$(submit_stage 18 isoform_filter "$isoform_dependency" "$annotation_array" "$LOG_DIR/isoform_filter_%A_%a.out" "$LOG_DIR/isoform_filter_%A_%a.err" "$SCRIPT_DIR/slurm/18_isoform_filter.sh" \
+        isoform_job_id="$(submit_stage 19 isoform_filter "$isoform_dependency" "$annotation_array" "$LOG_DIR/isoform_filter_%A_%a.out" "$LOG_DIR/isoform_filter_%A_%a.err" "$SCRIPT_DIR/slurm/19_isoform_filter.sh" \
             --job-name=akodon_isoform_filter \
             --partition="$ISOFORM_PARTITION" \
             --qos="$ISOFORM_QOS" \
@@ -425,12 +426,12 @@ if truthy "$ENABLE_ANNOTATION"; then
             --array="$annotation_array" \
             --output="$LOG_DIR/isoform_filter_%A_%a.out" \
             --error="$LOG_DIR/isoform_filter_%A_%a.err" \
-            "$SCRIPT_DIR/slurm/18_isoform_filter.sh" "$CONFIG_PATH")"
+            "$SCRIPT_DIR/slurm/19_isoform_filter.sh" "$CONFIG_PATH")"
     fi
 
     if truthy "$ENABLE_REASSIGN_HEADERS"; then
         restore_dependency="$(join_dependencies "$annotation_preprocess_job_id" "${galba_job_id:-}" "${braker2_job_id:-}" "${braker3_job_id:-}" "${tsebra_job_id:-}" "${isoform_job_id:-}")"
-        restore_headers_job_id="$(submit_stage 19 restore_headers "$restore_dependency" "$annotation_array" "$LOG_DIR/restore_headers_%A_%a.out" "$LOG_DIR/restore_headers_%A_%a.err" "$SCRIPT_DIR/slurm/19_restore_headers.sh" \
+        restore_headers_job_id="$(submit_stage 20 restore_headers "$restore_dependency" "$annotation_array" "$LOG_DIR/restore_headers_%A_%a.out" "$LOG_DIR/restore_headers_%A_%a.err" "$SCRIPT_DIR/slurm/20_restore_headers.sh" \
             --job-name=akodon_restore_headers \
             --partition="$REASSIGN_PARTITION" \
             --qos="$REASSIGN_QOS" \
@@ -440,12 +441,12 @@ if truthy "$ENABLE_ANNOTATION"; then
             --array="$annotation_array" \
             --output="$LOG_DIR/restore_headers_%A_%a.out" \
             --error="$LOG_DIR/restore_headers_%A_%a.err" \
-            "$SCRIPT_DIR/slurm/19_restore_headers.sh" "$CONFIG_PATH")"
+            "$SCRIPT_DIR/slurm/20_restore_headers.sh" "$CONFIG_PATH")"
     fi
 
     if truthy "$ENABLE_INTERPROSCAN"; then
         interproscan_dependency="$(join_dependencies "${isoform_job_id:-}" "${tsebra_job_id:-}" "${galba_job_id:-}" "${braker2_job_id:-}" "${braker3_job_id:-}")"
-        interproscan_job_id="$(submit_stage 20 interproscan "$interproscan_dependency" "$annotation_array" "$LOG_DIR/interproscan_%A_%a.out" "$LOG_DIR/interproscan_%A_%a.err" "$SCRIPT_DIR/slurm/20_interproscan.sh" \
+        interproscan_job_id="$(submit_stage 21 interproscan "$interproscan_dependency" "$annotation_array" "$LOG_DIR/interproscan_%A_%a.out" "$LOG_DIR/interproscan_%A_%a.err" "$SCRIPT_DIR/slurm/21_interproscan.sh" \
             --job-name=akodon_interproscan \
             --partition="$INTERPROSCAN_PARTITION" \
             --qos="$INTERPROSCAN_QOS" \
@@ -455,7 +456,7 @@ if truthy "$ENABLE_ANNOTATION"; then
             --array="$annotation_array" \
             --output="$LOG_DIR/interproscan_%A_%a.out" \
             --error="$LOG_DIR/interproscan_%A_%a.err" \
-            "$SCRIPT_DIR/slurm/20_interproscan.sh" "$CONFIG_PATH")"
+            "$SCRIPT_DIR/slurm/21_interproscan.sh" "$CONFIG_PATH")"
     fi
 fi
 
@@ -477,8 +478,8 @@ print_job "Annotation prep" "${annotation_preprocess_job_id:-}"
 print_job "Protein download" "${annotation_download_job_id:-}"
 print_job "Protein prep" "${annotation_protein_prep_job_id:-}"
 print_job "GALBA" "${galba_job_id:-}"
-print_job "BRAKER2" "${braker2_job_id:-}"
 print_job "RNA align" "${rna_align_job_id:-}"
+print_job "BRAKER2" "${braker2_job_id:-}"
 print_job "BRAKER3" "${braker3_job_id:-}"
 print_job "TSEBRA" "${tsebra_job_id:-}"
 print_job "Isoform filter" "${isoform_job_id:-}"

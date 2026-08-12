@@ -39,6 +39,16 @@ require_var() {
     [[ -n "${!var_name:-}" ]] || die "Required variable is not set: $var_name"
 }
 
+# The shipped SBATCH_ACCOUNT default is a placeholder, not a real allocation.
+# Anything that actually calls sbatch must fail loudly instead of submitting
+# jobs against a made-up account code.
+require_sbatch_account() {
+    local account="${SBATCH_ACCOUNT:-}"
+
+    [[ -n "$account" ]] || die "SBATCH_ACCOUNT is not set. Export your SLURM allocation code, for example: export SBATCH_ACCOUNT=YOUR-ALLOCATION-CODE (see the SITE CONFIGURATION block in config/pipeline.env)."
+    [[ "$account" != *XXXX* ]] || die "SBATCH_ACCOUNT is still the placeholder '$account'. Export your own SLURM allocation code, for example: export SBATCH_ACCOUNT=YOUR-ALLOCATION-CODE (see the SITE CONFIGURATION block in config/pipeline.env)."
+}
+
 ensure_dir() {
     mkdir -p "$1"
 }

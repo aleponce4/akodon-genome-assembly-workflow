@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 20: run InterProScan on the chosen protein FASTA.
+# Stage 21: run InterProScan on the chosen protein FASTA.
 
 set -euo pipefail
 

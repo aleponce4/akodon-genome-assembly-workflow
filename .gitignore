@@ -15,6 +15,12 @@ RNA_seq/genome_index/
 RNA_seq/log_files/
 RNA_seq/tmp/
 old_job_scripts/
+# User-populated annotation inputs and deliverables (see README "Inputs").
+# annotation/output/ and annotation_functional/output/ are already covered by
+# the bare output/ pattern above.
+annotation/input/
+annotation/original_headers/
+annotation/famdb/
 annotation/singularity_images/*.sif
 annotation_functional/data/bin/*.sif
 Repeat_modeler_container/

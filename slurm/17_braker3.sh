@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 16: run BRAKER3 with RNA-seq BAM evidence and protein evidence.
+# Stage 17: run BRAKER3 with RNA-seq BAM evidence and protein evidence.
 
 set -euo pipefail
 

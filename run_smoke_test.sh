@@ -49,32 +49,32 @@ if truthy "$ENABLE_ANNOTATION"; then
         run_stage "$SCRIPT_DIR/slurm/14_galba.sh"
     fi
 
-    if truthy "$ENABLE_BRAKER2"; then
-        run_stage "$SCRIPT_DIR/slurm/15_braker2.sh"
-    fi
-
     if truthy "$ENABLE_BRAKER3" && truthy "$ENABLE_RNA_ALIGNMENT"; then
         run_stage "$SCRIPT_DIR/slurm/15_rna_align_hisat2_array.sh"
     fi
 
+    if truthy "$ENABLE_BRAKER2"; then
+        run_stage "$SCRIPT_DIR/slurm/16_braker2.sh"
+    fi
+
     if truthy "$ENABLE_BRAKER3"; then
-        run_stage "$SCRIPT_DIR/slurm/16_braker3.sh"
+        run_stage "$SCRIPT_DIR/slurm/17_braker3.sh"
     fi
 
     if truthy "$ENABLE_TSEBRA"; then
-        run_stage "$SCRIPT_DIR/slurm/17_tsebra.sh"
+        run_stage "$SCRIPT_DIR/slurm/18_tsebra.sh"
     fi
 
     if truthy "$ENABLE_ISOFORM_FILTER"; then
-        run_stage "$SCRIPT_DIR/slurm/18_isoform_filter.sh"
+        run_stage "$SCRIPT_DIR/slurm/19_isoform_filter.sh"
     fi
 
     if truthy "$ENABLE_REASSIGN_HEADERS"; then
-        run_stage "$SCRIPT_DIR/slurm/19_restore_headers.sh"
+        run_stage "$SCRIPT_DIR/slurm/20_restore_headers.sh"
     fi
 
     if truthy "$ENABLE_INTERPROSCAN"; then
-        run_stage "$SCRIPT_DIR/slurm/20_interproscan.sh"
+        run_stage "$SCRIPT_DIR/slurm/21_interproscan.sh"
     fi
 fi
 

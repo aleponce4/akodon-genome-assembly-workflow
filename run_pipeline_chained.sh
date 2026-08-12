@@ -13,12 +13,13 @@ source_config "$CONFIG_PATH"
 ensure_base_dirs
 
 command -v sbatch >/dev/null 2>&1 || die "sbatch was not found on PATH."
+require_sbatch_account
 
 chain_run_id="${PIPELINE_CHAIN_RUN_ID:-$(date '+%Y%m%d_%H%M%S')_chain_$$}"
 [[ "$chain_run_id" =~ ^[A-Za-z0-9._-]+$ ]] || die "PIPELINE_CHAIN_RUN_ID may only contain letters, numbers, dot, underscore, and dash."
 
 chunks="$PIPELINE_STAGE_CHUNKS"
-if ! truthy "$ENABLE_ANNOTATION" && [[ "${PIPELINE_STAGE_CHUNKS:-}" == "00-03,04-10,11-13,14-16,17-20" ]]; then
+if ! truthy "$ENABLE_ANNOTATION" && [[ "${PIPELINE_STAGE_CHUNKS:-}" == "00-03,04-10,11-13,14-17,18-21" ]]; then
     chunks="00-03,04-10"
 fi
 

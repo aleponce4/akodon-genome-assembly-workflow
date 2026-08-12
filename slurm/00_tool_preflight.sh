@@ -306,8 +306,18 @@ check_fastqs
 check_rna_fastqs
 
 check_executable_path "supernova_bin" "$SUPERNOVA_BIN"
-if ensure_supernova_runtime_libs; then
+# ensure_supernova_runtime_libs() calls die() on a missing library or directory,
+# which would abort every remaining preflight check. Run it in a subshell so the
+# failure is recorded like any other check and the run continues; the final
+# exit status still reflects the recorded failures.
+if detail="$(ensure_supernova_runtime_libs 2>&1)"; then
     record_check "supernova_runtime_libs" "OK" "$SUPERNOVA_LIB_DIR"
+    # The helper exports LD_LIBRARY_PATH; the subshell cannot, so mirror it here
+    # for the Supernova version capture further down.
+    export LD_LIBRARY_PATH="$SUPERNOVA_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+else
+    detail="$(printf '%s' "$detail" | tr '\n\t' '; ' | head -c 400)"
+    record_check "supernova_runtime_libs" "FAIL" "${detail:-Could not prepare Supernova runtime libraries in $SUPERNOVA_LIB_DIR}"
 fi
 if detail="$(timeout 120s bash -c 'source "$1"; source_config "$2"; supernova_python_import_probe' bash "$PIPELINE_ROOT/scripts/lib/common.sh" "$CONFIG_PATH" 2>&1 | head -n 1)"; then
     record_check "supernova_python_imports" "OK" "${detail:-supernova python imports OK}"

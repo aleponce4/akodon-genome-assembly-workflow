@@ -94,13 +94,13 @@ printf '  11  Annotation genome preprocessing: simplify masked-genome headers\n'
 printf '  12  Download reference protein sets from NCBI\n'
 printf '  13  Prepare combined simplified protein FASTA for GALBA/BRAKER\n'
 printf '  14  Run GALBA with protein evidence\n'
-printf '  15  Run BRAKER2 with protein evidence (optional)\n'
 printf '  15  Align RNA-seq reads with HISAT2/samtools for BRAKER3\n'
-printf '  16  Run BRAKER3 with RNA-seq BAM evidence\n'
-printf '  17  Combine GALBA + BRAKER with TSEBRA\n'
-printf '  18  Filter to longest isoform and export CDS/proteins\n'
-printf '  19  Restore original genome headers in final annotation files\n'
-printf '  20  Run InterProScan on predicted proteins\n'
+printf '  16  Run BRAKER2 with protein evidence (optional)\n'
+printf '  17  Run BRAKER3 with RNA-seq BAM evidence\n'
+printf '  18  Combine GALBA + BRAKER with TSEBRA\n'
+printf '  19  Filter to longest isoform and export CDS/proteins\n'
+printf '  20  Restore original genome headers in final annotation files\n'
+printf '  21  Run InterProScan on predicted proteins\n'
 printf '\n'
 
 printf 'Shared resources\n'
@@ -111,6 +111,9 @@ report_command_or_path "QUAST binary" "${QUAST_ENV_PREFIX:-}/bin/quast.py" "$QUA
 report_command_or_path "BUSCO plot script" "${BUSCO_ENV_PREFIX:-}/bin/generate_plot.py" "$BUSCO_PLOT_SCRIPT"
 report_path "BUSCO lineage" "$BUSCO_LINEAGE_DIR" dir
 report_path "RepeatModeler image" "$REPEATMODELER_IMAGE" file
+if truthy "$REPEATMASKER_ENABLE_DFAM_ROUNDS"; then
+    report_path "Dfam FamDB dir" "$REPEATMASKER_FAMDB_DIR" dir
+fi
 report_path "BRAKER image" "$BRAKER_SIF" file
 report_path "GALBA image" "$GALBA_SIF" file
 report_path "InterProScan image" "$INTERPROSCAN_SIF" file
@@ -175,19 +178,19 @@ printf '  12 -> 13 -> 14\n'
 printf '    NCBI protein downloads are concatenated and header-simplified for GALBA.\n'
 printf '  11 + 13 -> 14\n'
 printf '    GALBA uses the simplified masked genome plus the simplified protein set.\n'
-printf '  11 + protein evidence -> 15\n'
-printf '    BRAKER2 is a protein-evidence-only alternative model.\n'
 printf '  11 + RNA FASTQs -> 15\n'
 printf '    HISAT2/samtools aligns RNA-seq libraries to each simplified genome.\n'
-printf '  11 + 15 RNA BAMs + protein evidence -> 16\n'
+printf '  11 + protein evidence -> 16\n'
+printf '    BRAKER2 is a protein-evidence-only alternative model.\n'
+printf '  11 + 15 RNA BAMs + protein evidence -> 17\n'
 printf '    BRAKER3 uses RNA-seq BAMs and vertebrate proteins.\n'
-printf '  14 + 16 -> 17\n'
+printf '  14 + 17 -> 18\n'
 printf '    TSEBRA combines GALBA and BRAKER predictions using their GTF and hints files.\n'
-printf '  14/15/16/17 -> 18\n'
+printf '  14/16/17/18 -> 19\n'
 printf '    Longest-isoform filtering prepares OMArk-style protein sets from each predictor.\n'
-printf '  11 + 14/15/16/17 -> 19\n'
+printf '  11 + 14/16/17/18 -> 20\n'
 printf '    Original contig headers are restored for final genome/GTF deliverables.\n'
-printf '  18 -> 20\n'
+printf '  19 -> 21\n'
 printf '    InterProScan runs on a chosen predicted protein FASTA, likely GALBA or TSEBRA output.\n'
 printf '\n'
 printf 'Annotation mode\n'
