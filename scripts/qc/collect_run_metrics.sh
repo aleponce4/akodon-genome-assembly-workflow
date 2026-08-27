@@ -70,7 +70,45 @@ while IFS= read -r f; do
     printf '%s\t%s\t%s\n' "$name" "$lin" "$line" >> "$bt"
     nb=$((nb+1))
 done < <(find -L "$ROOT" -type f -name 'short_summary*.txt' 2>/dev/null | sort -u)
-if (( nb )); then sort -u "$bt" | column -t -s $'\t'; else echo "  none found"; fi
+if (( nb )); then
+    sort -u "$bt" | column -t -s $'\t'
+else
+    # Fall back to full_table.tsv. The one-line C/S/D/F/M summary is fully
+    # derivable from it, so a missing short_summary.txt is not a missing result.
+    # Duplicated BUSCOs occupy one ROW PER COPY, so every status must be counted
+    # over UNIQUE busco ids or D is inflated and the percentages do not sum to n.
+    nft=0
+    while IFS= read -r ft; do
+        [[ -s "$ft" ]] || continue
+        name="$(basename "$(dirname "$(dirname "$ft")")")"
+        lin="$(awk -F'is: ' '/lineage dataset/{split($2,a," "); print a[1]; exit}' "$ft")"
+        awk -F'\t' -v name="$name" -v lin="${lin:-unknown}" '
+            /^#/ { next }
+            NF >= 2 { status[$1] = ($1 in status && status[$1] == "Duplicated") ? status[$1] : $2 }
+            $2 == "Duplicated" { status[$1] = "Duplicated" }
+            END {
+                for (id in status) {
+                    s = status[id]; n++
+                    if (s == "Complete")        single++
+                    else if (s == "Duplicated") dup++
+                    else if (s == "Fragmented") frag++
+                    else if (s == "Missing")    miss++
+                }
+                comp = single + dup
+                printf "%s\t%s\tC:%.1f%%[S:%.1f%%,D:%.1f%%],F:%.1f%%,M:%.1f%%,n:%d  (from full_table.tsv)\n",
+                    name, lin, 100*comp/n, 100*single/n, 100*dup/n, 100*frag/n, 100*miss/n, n
+                printf "%s\t%s\tcounts: C=%d S=%d D=%d F=%d M=%d\n", name, lin, comp, single, dup, frag, miss
+            }
+        ' "$ft" >> "$bt"
+        nft=$((nft+1))
+    done < <(find -L "$ROOT" -type f -name 'full_table.tsv' 2>/dev/null | sort)
+    if (( nft )); then
+        echo "  (short_summary*.txt absent; derived from $nft full_table.tsv)"
+        sort -u "$bt" | column -t -s $'\t'
+    else
+        echo "  none found"
+    fi
+fi
 
 ########## RepeatMasker
 echo; hr; echo "REPEATMASKER (per round; verifies masking accumulates)"; hr
