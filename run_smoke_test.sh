@@ -8,6 +8,23 @@ CONFIG_PATH="${1:-$SCRIPT_DIR/config/smoke_test.env}"
 source "$SCRIPT_DIR/scripts/lib/common.sh"
 source_config "$CONFIG_PATH"
 
+# Start from a clean tree. Without this the smoke test reuses whatever the
+# previous run left behind, so a stage that has regressed into producing
+# nothing still "passes" against stale output from an earlier run.
+# Set SMOKE_TEST_KEEP=1 to inspect a previous run's output instead.
+SMOKE_TEST_ROOT="${SMOKE_TEST_ROOT:-$SCRIPT_DIR/smoke_test}"
+if ! truthy "${SMOKE_TEST_KEEP:-0}"; then
+    if [[ -e "$SMOKE_TEST_ROOT" ]]; then
+        case "$SMOKE_TEST_ROOT" in
+            "$SCRIPT_DIR"/*/) : ;;
+            "$SCRIPT_DIR"/*)  : ;;
+            *) die "Refusing to remove SMOKE_TEST_ROOT outside the repo: $SMOKE_TEST_ROOT" ;;
+        esac
+        printf 'Clearing previous smoke test output: %s\n' "$SMOKE_TEST_ROOT"
+        rm -rf "${SMOKE_TEST_ROOT:?}"
+    fi
+fi
+
 bash "$SCRIPT_DIR/scripts/setup_smoke_test.sh" "$CONFIG_PATH"
 
 export CONFIG="$CONFIG_PATH"

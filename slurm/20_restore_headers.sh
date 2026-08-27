@@ -56,22 +56,35 @@ restore_gtf() {
     local output_gtf="$restore_dir/${label}_original_headers.gtf"
 
     [[ -f "$input_gtf" ]] || return 0
-    awk -F '\t' -v OFS='\t' '
+    # The header map stores the FULL original FASTA header in field 2, which may
+    # carry a description after the ID (Supernova writes e.g. ">1 len=12345").
+    # A GTF seqname cannot contain whitespace, so take only the first token --
+    # that also keeps the GTF seqname identical to the restored FASTA record ID.
+    # Fail loudly if nothing mapped: a stale or wrong-sample header map would
+    # otherwise yield a full-size, completely unmapped GTF and exit 0.
+    if ! awk -F '\t' -v OFS='\t' -v label="$label" '
         NR == FNR {
             from = $1
             to = $2
             sub(/^>/, "", from)
             sub(/^>/, "", to)
-            mapping[from] = to
+            split(to, id_parts, /[ \t]/)
+            mapping[from] = id_parts[1]
             next
         }
+        /^#/ { print; next }
         {
-            if ($1 in mapping) {
-                $1 = mapping[$1]
-            }
+            if ($1 in mapping) { $1 = mapping[$1]; mapped++ } else { unmapped++ }
             print
         }
-    ' "$header_map" "$input_gtf" > "$output_gtf"
+        END {
+            printf("[%s] seqnames restored: %d mapped, %d unmapped\n",
+                   label, mapped + 0, unmapped + 0) > "/dev/stderr"
+            if (mapped + 0 == 0) { exit 1 }
+        }
+    ' "$header_map" "$input_gtf" > "$output_gtf"; then
+        die "No GTF seqname in $input_gtf matched the header map $header_map (wrong sample or stale map?)"
+    fi
     [[ -s "$output_gtf" ]] || die "Restored GTF was not created: $output_gtf"
     printf '%s\t%s\t%s\n' "$label" "$input_gtf" "$output_gtf" >> "$manifest_file"
 }
@@ -86,7 +99,9 @@ if [[ -d "$(annotation_tsebra_current_dir "$sample_id")" ]]; then
     while IFS= read -r gtf_path; do
         config_name="$(basename "$(dirname "$gtf_path")")"
         restore_gtf "$config_name" "$gtf_path"
-    done < <(find "$(annotation_tsebra_current_dir "$sample_id")" -type f -name 'tsebra_*.gtf' | sort)
+        # -L is required: tsebra_current is a symlink (stage 18), and plain
+        # `find` does not descend into a symlinked start point.
+    done < <(find -L "$(annotation_tsebra_current_dir "$sample_id")" -type f -name 'tsebra_*.gtf' | sort)
 fi
 
 if [[ -d "$(annotation_isoform_root "$sample_id")" ]]; then

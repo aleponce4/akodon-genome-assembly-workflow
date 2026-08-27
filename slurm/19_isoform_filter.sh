@@ -38,7 +38,9 @@ if [[ -d "$(annotation_tsebra_current_dir "$sample_id")" ]]; then
         config_name="$(basename "$(dirname "$gtf_path")")"
         model_names+=("$config_name")
         model_gtfs+=("$gtf_path")
-    done < <(find "$(annotation_tsebra_current_dir "$sample_id")" -type f -name 'tsebra_*.gtf' | sort)
+        # -L is required: tsebra_current is a symlink (stage 18), and plain
+        # `find` does not descend into a symlinked start point.
+    done < <(find -L "$(annotation_tsebra_current_dir "$sample_id")" -type f -name 'tsebra_*.gtf' | sort)
 fi
 
 (( ${#model_names[@]} > 0 )) || die "No annotation GTF files were found for isoform filtering."

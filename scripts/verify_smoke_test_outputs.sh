@@ -150,4 +150,29 @@ for ((idx = 0; idx < sample_total; idx++)); do
         "Sample $sample_id"
 done
 
+# 7. TSEBRA deliverables reach stages 19 and 20.
+#    Regression guard: stage 18 publishes its results through a `tsebra_current`
+#    symlink, and a plain `find` does not descend into a symlinked start point.
+#    That silently dropped every TSEBRA model -- the final annotation -- from the
+#    isoform filter and the header restore while both stages still exited 0.
+#    These assertions fail if that regresses.
+if truthy "${ENABLE_TSEBRA:-0}"; then
+    for ((idx = 0; idx < sample_total; idx++)); do
+        sample_id="$(sample_id_by_index "$idx")"
+        restore_dir="$(annotation_original_headers_dir "$sample_id")"
+
+        tsebra_found="$(find -L "$(annotation_tsebra_current_dir "$sample_id")" \
+            -type f -name 'tsebra_*.gtf' 2>/dev/null | wc -l)"
+        (( tsebra_found > 0 )) \
+            || die "No TSEBRA GTF found under $(annotation_tsebra_current_dir "$sample_id") for sample $sample_id"
+        log "OK: $tsebra_found TSEBRA GTF(s) discoverable for sample $sample_id"
+
+        tsebra_restored="$(find -L "$restore_dir" -maxdepth 1 -type f \
+            -name 'tsebra_*_original_headers.gtf' 2>/dev/null | wc -l)"
+        (( tsebra_restored > 0 )) \
+            || die "Stage 20 restored no TSEBRA GTF for sample $sample_id (expected tsebra_*_original_headers.gtf in $restore_dir)"
+        log "OK: $tsebra_restored TSEBRA GTF(s) restored to original headers for sample $sample_id"
+    done
+fi
+
 log "All smoke test output contracts verified successfully."

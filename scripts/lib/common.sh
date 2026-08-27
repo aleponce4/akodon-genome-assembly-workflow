@@ -636,25 +636,32 @@ rna_align_hisat2_log() {
     printf '%s/%s_hisat2.log' "$(rna_align_sample_log_dir "$sample_id")" "$library_id"
 }
 
+# Minimum percent of bases that must be softmasked (lowercase) for the genome to
+# be considered repeat-masked. Rodent genomes are ~40-48% repetitive (mouse 45%,
+# rat 42.6%); anything below this means masking was lost or never applied.
+SOFTMASK_MIN_PERCENT="${SOFTMASK_MIN_PERCENT:-20}"
+
 assert_softmasked_fasta() {
     local fasta_file="$1"
-    local lower_count
+    local percent
 
     [[ -f "$fasta_file" ]] || die "Softmask check input not found: $fasta_file"
-    lower_count="$(awk '
-        /^>/ { next }
-        {
-            for (i = 1; i <= length($0); i++) {
-                c = substr($0, i, 1)
-                if (c ~ /[acgtn]/) {
-                    count++
-                }
-            }
-        }
-        END { print count + 0 }
-    ' "$fasta_file")"
 
-    (( lower_count > 0 )) || die "Genome FASTA has no lowercase bases; expected softmasked RepeatMasker output: $fasta_file"
+    # tr-based counting: the previous per-character awk loop ran billions of
+    # substr() calls on a multi-gigabase genome and was called once per
+    # predictor. This does the same work in a single pass.
+    percent="$(grep -v '^>' "$fasta_file" | tr -d '\n\r' | awk '
+        { total += length($0); gsub(/[^acgtn]/, "", $0); lower += length($0) }
+        END { if (total == 0) { print -1 } else { printf("%.2f", 100 * lower / total) } }
+    ')"
+
+    if awk -v p="$percent" 'BEGIN { exit !(p < 0) }'; then
+        die "Softmask check found no sequence in: $fasta_file"
+    fi
+    if awk -v p="$percent" -v m="$SOFTMASK_MIN_PERCENT" 'BEGIN { exit !(p < m) }'; then
+        die "Genome FASTA is only ${percent}% softmasked (expected >= ${SOFTMASK_MIN_PERCENT}% for a rodent); RepeatMasker output may be unmasked or masking was lost between rounds: $fasta_file"
+    fi
+    log "Softmask check: ${percent}% of bases are lowercase in $(basename "$fasta_file")"
 }
 
 count_fasta_records() {
