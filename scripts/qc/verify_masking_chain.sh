@@ -36,12 +36,16 @@ DIR="${1:?usage: verify_masking_chain.sh <repeatmasker_sample_dir> [min_pct]}"
 MIN_PCT="${2:-40}"
 [[ -d "$DIR" ]] || { echo "ERROR: not a directory: $DIR" >&2; exit 1; }
 
-# Single streaming pass per file; these are multi-gigabase genomes.
+# Single streaming pass per file, line at a time. Do NOT strip newlines first:
+# that makes awk buffer the whole multi-gigabase genome as one record, costing
+# ~6-8 GB of heap for a count that needs none, and mawk can fail outright on a
+# record over 2 GB. FASTA line wrapping already bounds the record size.
 masked_pct () {
-    grep -v '^>' "$1" | tr -d '\n\r' | awk '
-        { total += length($0); gsub(/[^acgtn]/, "", $0); lower += length($0) }
+    awk '
+        /^>/ { next }
+        { sub(/\r$/, ""); total += length($0); gsub(/[^acgtn]/, "", $0); lower += length($0) }
         END { if (total == 0) print "NA"; else printf("%.2f", 100 * lower / total) }
-    '
+    ' "$1"
 }
 
 echo "RepeatMasker softmask accumulation check"

@@ -45,6 +45,13 @@ find_classified_repeat_file() {
     return 1
 }
 
+# NOTE ON SCOPE: this stage merges the RepeatModeler libraries from ALL samples
+# into a single union library, and stage 10 then masks every sample with that
+# union. For several individuals of one species that is the better-powered
+# choice -- each library is an independent sample of the same repeat landscape.
+# But it does mean per-sample repeat content is NOT independently estimated, so
+# a paper cannot report per-sample repeat statistics from these outputs as if
+# they were independent. Mask with a per-sample library if that is needed.
 merged_repeats="$REPEAT_LIBRARY_DIR/merged_repeats.fa"
 non_redundant_repeats="$REPEAT_LIBRARY_DIR/non_redundant_repeats.fa"
 known_repeats="$(known_repeat_library)"

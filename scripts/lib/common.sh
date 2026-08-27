@@ -647,13 +647,17 @@ assert_softmasked_fasta() {
 
     [[ -f "$fasta_file" ]] || die "Softmask check input not found: $fasta_file"
 
-    # tr-based counting: the previous per-character awk loop ran billions of
-    # substr() calls on a multi-gigabase genome and was called once per
-    # predictor. This does the same work in a single pass.
-    percent="$(grep -v '^>' "$fasta_file" | tr -d '\n\r' | awk '
-        { total += length($0); gsub(/[^acgtn]/, "", $0); lower += length($0) }
+    # Line-at-a-time counting. The original implementation ran a per-character
+    # awk substr() loop over the whole genome; stripping newlines first would
+    # instead make awk buffer the entire multi-gigabase sequence as ONE record,
+    # needing ~6-8 GB of heap for a count that needs none (and mawk, the default
+    # awk on Debian/Ubuntu images, can fail outright on a >2 GB record). FASTA
+    # line wrapping already bounds the record size, so keep the newlines.
+    percent="$(awk '
+        /^>/ { next }
+        { sub(/\r$/, ""); total += length($0); gsub(/[^acgtn]/, "", $0); lower += length($0) }
         END { if (total == 0) { print -1 } else { printf("%.2f", 100 * lower / total) } }
-    ')"
+    ' "$fasta_file")"
 
     if awk -v p="$percent" 'BEGIN { exit !(p < 0) }'; then
         die "Softmask check found no sequence in: $fasta_file"
