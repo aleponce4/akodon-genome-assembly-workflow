@@ -92,12 +92,15 @@ echo "### ranking against the genus panel"
            -max_target_seqs 1000 -evalue 1e-20 2>/dev/null > '$OUTDIR/cytb_hits.tsv'
 "
 
+# `head` closing a pipe sends SIGPIPE upstream, which `set -o pipefail` turns
+# into a script-killing failure right at the point the results are printed.
+# Truncate inside awk instead so the summary always completes.
 echo
 echo "================ TOP 15 HITS ================"
-awk -F'\t' '{
+awk -F'\t' 'NR <= 15 {
     sp="?"; if (match($6, /Akodon [a-z]+/)) sp=substr($6, RSTART, RLENGTH)
     printf "  %-24s %6.2f%% id  %4d bp  %s\n", sp, $2, $3, $1
-}' "$OUTDIR/cytb_hits.tsv" | head -15
+}' "$OUTDIR/cytb_hits.tsv"
 
 echo
 echo "========= BEST IDENTITY PER SPECIES ========="
@@ -106,13 +109,18 @@ awk -F'\t' '{
     if ($2 > best[sp]) { best[sp]=$2 }; n[sp]++
 } END {
     for (s in best) printf "%8.2f\t%s\t%d\n", best[s], s, n[s]
-}' "$OUTDIR/cytb_hits.tsv" | sort -rn | head -12 \
-  | awk -F'\t' '{printf "  %-24s %6.2f%%   (%d seqs in panel)\n", $2, $1, $3}'
+}' "$OUTDIR/cytb_hits.tsv" | sort -rn \
+  | awk -F'\t' 'NR <= 12 {printf "  %-24s %6.2f%%   (%d seqs in panel)\n", $2, $1, $3}'
 
 echo
 top="$(awk -F'\t' 'NR==1{if (match($6,/Akodon [a-z]+/)) print substr($6,RSTART,RLENGTH)}' "$OUTDIR/cytb_hits.tsv")"
 topid="$(awk -F'\t' 'NR==1{print $2}' "$OUTDIR/cytb_hits.tsv")"
+best_other="$(awk -F'\t' -v t="$top" '{
+    sp=""; if (match($6, /Akodon [a-z]+/)) sp=substr($6, RSTART, RLENGTH)
+    if (sp != "" && sp != t && $2 > m) { m = $2; who = sp }
+} END { printf "%s\t%.2f", who, m }' "$OUTDIR/cytb_hits.tsv")"
 echo "VERDICT: best match = ${top:-unknown} at ${topid:-?}% identity"
-echo "  Expect >=99% to conspecifics and a clear gap (typically several percent)"
-echo "  to A. cursor and other congeners. A narrow margin means re-check."
+printf '  next-closest species: %s at %s%%\n' "$(cut -f1 <<<"$best_other")" "$(cut -f2 <<<"$best_other")"
+echo "  Expect >=99% to conspecifics and a clear gap (several percent) to every"
+echo "  congener. A narrow margin means re-check before naming the species."
 echo "  Full results: $OUTDIR/cytb_hits.tsv"
