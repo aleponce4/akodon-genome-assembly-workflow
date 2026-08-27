@@ -75,7 +75,13 @@ for config_file in "${config_files[@]}"; do
         -o "$output_gtf" \
         -c "$config_file"
 
-    [[ -f "$output_gtf" ]] || die "TSEBRA GTF was not created: $output_gtf"
+    # TSEBRA writes an empty GTF when its filters reject every model (a
+    # mis-specified .cfg, or gene IDs that do not line up with the hints).
+    # -f alone would let that pass silently, so require transcripts.
+    [[ -s "$output_gtf" ]] || die "TSEBRA GTF is missing or empty: $output_gtf"
+    tsebra_tx_count="$(awk -F '\t' '$3 == "transcript" || $3 == "mRNA" { n++ } END { print n + 0 }' "$output_gtf")"
+    (( tsebra_tx_count > 0 )) || die "TSEBRA produced 0 transcripts for config $config_name: $output_gtf"
+    log "TSEBRA config $config_name produced $tsebra_tx_count transcripts"
 
     "$SINGULARITY_BIN" exec -B "$PROJECT_ROOT:$PROJECT_ROOT" "$BRAKER_SIF" getAnnoFastaFromJoingenes.py \
         -g "$genome_fasta" \
