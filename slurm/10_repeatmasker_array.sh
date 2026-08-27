@@ -44,7 +44,14 @@ sample_base="$(basename "$input_fasta")"
 masker_output_dir="$(repeatmasker_workdir "$sample_id")"
 known_repeats="$(known_repeat_library)"
 unknown_repeats="$(unknown_repeat_library)"
-repeatmasker_threads="${SLURM_CPUS_PER_TASK:-$REPEATMASKER_CPUS}"
+repeatmasker_alloc_cpus="${SLURM_CPUS_PER_TASK:-$REPEATMASKER_CPUS}"
+# RepeatMasker's -pa counts parallel batch JOBS, not threads: each rmblast job
+# takes ~4 cores of its own. Passing the raw CPU count oversubscribes the
+# allocation roughly four-fold, so the kernel time-slices ~96 threads over 24
+# cores and the run gets slower, not faster - which on a 2.6 Gb genome across
+# four rounds is a real walltime-death risk. Never drop below one job.
+repeatmasker_threads=$(( repeatmasker_alloc_cpus / 4 ))
+(( repeatmasker_threads >= 1 )) || repeatmasker_threads=1
 final_masked_output="$(repeatmasker_final_masked "$sample_id")"
 
 ensure_dir "$masker_output_dir"
@@ -76,6 +83,27 @@ if [[ -n "${REPEATMASKER_FAMDB_DIR:-}" && -d "${REPEATMASKER_FAMDB_DIR:-}" ]]; t
     repeatmasker_container_args+=(--bind "$REPEATMASKER_FAMDB_DIR:/opt/RepeatMasker/Libraries/famdb")
 elif truthy "$REPEATMASKER_ENABLE_DFAM_ROUNDS"; then
     die "RepeatMasker Dfam rounds are enabled, but REPEATMASKER_FAMDB_DIR is missing: ${REPEATMASKER_FAMDB_DIR:-unset}"
+fi
+
+# Rounds 3 and 4 should not repeat the low-complexity/simple-repeat search that
+# round 1 already did: re-running it costs a full TRF pass over the genome each
+# time and reports the same intervals in three separate .out/.tbl sets, so any
+# sum across rounds double- or triple-counts the simple-repeat fraction.
+#
+# But round 1 only happens when the Dfam rounds are enabled. With
+# REPEATMASKER_ENABLE_DFAM_ROUNDS=0 (a supported mode) rounds 1 and 2 are
+# replaced by a plain copy, which makes rounds 3 and 4 the ONLY place low
+# complexity is ever masked. Suppressing it there would hand GALBA/BRAKER a
+# genome with no low-complexity masking at all and produce spurious gene models
+# -- a worse outcome than the double-counting. So gate the flag on round 1
+# having actually run.
+# Always carries -xsmall/-gff so the array is never empty: under `set -u`,
+# expanding an empty array as "${arr[@]}" is an unbound-variable error on
+# bash < 4.4, which some cluster images still ship.
+if truthy "$REPEATMASKER_ENABLE_DFAM_ROUNDS"; then
+    repeatmasker_lib_round_flags=(-nolow -xsmall -gff)
+else
+    repeatmasker_lib_round_flags=(-xsmall -gff)
 fi
 
 cd "$masker_output_dir"
@@ -118,8 +146,7 @@ if [[ -s "$known_repeats" ]]; then
     log "RepeatMasker round 3 for sample $sample_id"
     "$SINGULARITY_BIN" "${repeatmasker_container_args[@]}" "$REPEATMODELER_IMAGE" RepeatMasker \
         -pa "$repeatmasker_threads" \
-        -xsmall \
-        -gff \
+        "${repeatmasker_lib_round_flags[@]}" \
         -lib "$known_repeats" \
         -dir "$masker_output_dir" \
         "$round3_input"
@@ -137,8 +164,7 @@ if [[ -s "$unknown_repeats" ]]; then
     log "RepeatMasker round 4 for sample $sample_id"
     "$SINGULARITY_BIN" "${repeatmasker_container_args[@]}" "$REPEATMODELER_IMAGE" RepeatMasker \
         -pa "$repeatmasker_threads" \
-        -xsmall \
-        -gff \
+        "${repeatmasker_lib_round_flags[@]}" \
         -lib "$unknown_repeats" \
         -dir "$masker_output_dir" \
         "$round4_input"
@@ -149,3 +175,13 @@ else
 fi
 
 [[ -e "$final_masked_output" ]] || die "RepeatMasker final masked output was not created: $final_masked_output"
+
+# Every round above can legitimately be skipped (Dfam rounds disabled, or an
+# empty RepeatModeler library), and each skip copies its input forward with
+# `cp -f`. So the "final masked" genome can be a byte-identical copy of the
+# UNMASKED assembly while this stage still exits 0. Nothing in stages 11-13 or 15
+# inspects sequence case, so an unmasked genome would get a HISAT2 index built
+# over it and every RNA library aligned to it before stage 14/16/17 finally
+# objected -- and that error names the *simplified* FASTA, three stages
+# downstream of the actual problem. Assert here instead.
+assert_softmasked_fasta "$final_masked_output"

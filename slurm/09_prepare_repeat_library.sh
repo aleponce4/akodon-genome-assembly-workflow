@@ -15,25 +15,32 @@ ensure_base_dirs
 
 find_classified_repeat_file() {
     local search_dir="$1"
+    local pattern
     local candidate
 
-    candidate="$(find "$search_dir" -type f -name 'consensi.fa.classified' | sort | head -n 1 || true)"
-    if [[ -n "$candidate" ]]; then
-        printf '%s\n' "$candidate"
-        return 0
-    fi
-
-    candidate="$(find "$search_dir" -type f -name '*classified-families.fa' | sort | head -n 1 || true)"
-    if [[ -n "$candidate" ]]; then
-        printf '%s\n' "$candidate"
-        return 0
-    fi
-
-    candidate="$(find "$search_dir" -type f -name '*-families.fa' | sort | head -n 1 || true)"
-    if [[ -n "$candidate" ]]; then
-        printf '%s\n' "$candidate"
-        return 0
-    fi
+    # RepeatModeler 2 writes its final combined library (RECON/RepeatScout
+    # families plus any -LTRStruct families) to <database>-families.fa in the
+    # working directory; consensi.fa.classified is the pre-combination
+    # intermediate inside the RM_<pid>.<date> run directory. Prefer the combined
+    # library.
+    #
+    # Within each pattern, pick the most recently modified NON-EMPTY file. A
+    # RepeatModeler rerun, restart or requeue -- very likely on a 2.6 Gb genome
+    # with multi-day jobs -- leaves several RM_<pid>.<date> directories behind,
+    # and plain `sort | head -1` picks by lexical path order rather than
+    # recency. That silently hands a stale or partial library to stage 10, which
+    # masks ALL FOUR assemblies from this one merged library, degrading every
+    # downstream gene set with no error anywhere.
+    #
+    # Requires GNU find for -printf, which is what the Linux cluster provides.
+    for pattern in '*classified-families.fa' '*-families.fa' 'consensi.fa.classified'; do
+        candidate="$(find "$search_dir" -type f -size +0c -name "$pattern" -printf '%T@\t%p\n' 2>/dev/null \
+            | sort -rn | head -n 1 | cut -f2- || true)"
+        if [[ -n "$candidate" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
 
     return 1
 }

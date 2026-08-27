@@ -142,9 +142,44 @@ for library_id in $RNA_ALIGN_LIBRARY_IDS; do
     samtools flagstat "$bam_tmp" > "$flagstat_tmp"
     [[ -s "$flagstat_tmp" ]] || die "RNA alignment flagstat was not created: $flagstat_tmp"
 
+    # Move the report into place BEFORE gating on it: tmp_dir is wiped on exit,
+    # so a report left there would vanish exactly when it is wanted for diagnosis.
+    mv -f "$flagstat_tmp" "$flagstat_file"
+
+    # HISAT2 exits 0 and samtools yields a valid, indexed, non-empty BAM even when
+    # almost nothing aligned -- a wrong index, swapped mates, an rRNA/adapter- or
+    # gDNA-dominated library. Unchecked, that BAM becomes BRAKER3 evidence and
+    # quietly degrades the gene set: GeneMark-ETP training collapses toward ab
+    # initio and the models lose intron support. With 10 libraries per sample the
+    # damage is diluted and correspondingly hard to notice, and nothing in the run
+    # report surfaces it.
+    #
+    # Rate is computed on PRIMARY alignments only. HISAT2 reports up to 5
+    # alignments per read by default, so flagstat's raw "mapped" line counts
+    # secondary records and overstates the rate.
+    mapped_pct="$(awk '
+        $4 == "in" && $5 == "total" { total = $1 }
+        $4 == "secondary"           { secondary = $1 }
+        $4 == "supplementary"       { supplementary = $1 }
+        $4 == "mapped"              { mapped = $1 }
+        END {
+            primary_total  = total  - secondary - supplementary
+            primary_mapped = mapped - secondary - supplementary
+            if (primary_total > 0) printf "%.2f", 100 * primary_mapped / primary_total
+            else print "-1"
+        }
+    ' "$flagstat_file")"
+
+    if awk -v p="$mapped_pct" 'BEGIN { exit !(p < 0) }'; then
+        die "Could not read read counts from flagstat for $sample_id/$library_id: $flagstat_file"
+    fi
+    if awk -v p="$mapped_pct" -v m="$RNA_ALIGN_MIN_MAPPED_PCT" 'BEGIN { exit !(m > 0 && p < m) }'; then
+        die "RNA library $library_id aligned only ${mapped_pct}% of primary reads to sample $sample_id (minimum ${RNA_ALIGN_MIN_MAPPED_PCT}%). Check the HISAT2 index, mate pairing, and library type. See $hisat2_log and $flagstat_file. Set RNA_ALIGN_MIN_MAPPED_PCT=0 to disable this gate."
+    fi
+    log "RNA library $library_id: ${mapped_pct}% of primary reads aligned"
+
     mv -f "$bam_tmp" "$bam_file"
     mv -f "$bam_tmp.bai" "$bai_file"
-    mv -f "$flagstat_tmp" "$flagstat_file"
 done
 
 if ! truthy "$RNA_ALIGN_KEEP_INDEX"; then

@@ -352,6 +352,16 @@ if truthy "$ENABLE_ANNOTATION"; then
         check_file "braker_image" "$BRAKER_SIF"
     fi
 
+    if truthy "$ENABLE_ISOFORM_FILTER"; then
+        # Stage 19 dies without this helper, but only after stages 14-17 have each
+        # burned up to GALBA_TIME / BRAKER3_TIME of walltime. It is not vendored
+        # here: scripts/hpc/bootstrap_dependencies.sh fetches it over the network,
+        # so a proxy-blocked bootstrap has to be caught now, not a day and a half
+        # later. Stage 19 runs it as `python3 <path>` inside the container, so -f
+        # is the right predicate, matching stage 19's own test.
+        check_file "longest_isoform_script" "$ANNOTATION_LONGEST_ISOFORM_SCRIPT"
+    fi
+
     if truthy "$ENABLE_BRAKER3"; then
         check_file "braker3_protein_fasta" "$BRAKER3_PROTEIN_FASTA"
         if truthy "$ENABLE_RNA_ALIGNMENT"; then
