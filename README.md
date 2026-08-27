@@ -142,6 +142,8 @@ committed here; the sample table ships with synthetic placeholder rows.
 - [`run_slurm_smoke_test.sh`](run_slurm_smoke_test.sh): real-SLURM toy submission
 - [`slurm/`](slurm): numbered stage scripts
 - [`scripts/check_pipeline_connections.sh`](scripts/check_pipeline_connections.sh): preflight path check
+- [`scripts/qc/`](scripts/qc): post-assembly QC and curation helpers, run outside
+  the numbered pipeline (see [Post-assembly QC](#post-assembly-qc))
 - [`scripts/hpc/bootstrap_dependencies.sh`](scripts/hpc/bootstrap_dependencies.sh): HPC bootstrap
 - [`scripts/hpc/prepare_repeatmasker_famdb.sh`](scripts/hpc/prepare_repeatmasker_famdb.sh): populates the Dfam FamDB directory used by the RepeatMasker Dfam rounds
 - [`tests/test_pipeline.py`](tests/test_pipeline.py): unit and contract tests (see [Tests and CI](#tests-and-ci))
@@ -369,6 +371,44 @@ bash run_slurm_smoke_test.sh config/slurm_toy.env
 ```
 
 The local smoke test runs mock stages directly. The SLURM toy test submits the same dependency chain with tiny resources and writes under `slurm_toy/`.
+
+## Post-assembly QC
+
+[`scripts/qc/`](scripts/qc) holds curation and validation steps that sit outside
+the numbered pipeline. They are run by hand once assembly and masking are done,
+and none of them modify pipeline output.
+
+```bash
+# every headline metric the pipeline already produced, in one table
+bash scripts/qc/collect_run_metrics.sh
+
+# confirm RepeatMasker softmasking accumulates across the four rounds
+# rather than each round discarding the previous one's masking
+bash scripts/qc/verify_masking_chain.sh output/Repeat_masker/<sample_dir>
+
+# confirm species identity from a library's own reads
+bash scripts/qc/fetch_reference_panel.sh
+bash scripts/qc/identify_species.sh <R1.fastq.gz> <R2.fastq.gz> <outdir>
+
+# k-mer QC: Merqury QV, completeness, false duplication + GenomeScope2
+sbatch scripts/qc/kmer_qc.sh config/pipeline.env <assembly.fasta> <sample_id>
+```
+
+Two of these encode facts that are easy to get wrong and expensive to get wrong:
+
+- **`kmer_qc.sh` trims 23 bp (16 bp GEM barcode + 7 bp spacer) from R1 only.**
+  Those bases are synthetic and are not in the genome; left in, they inflate the
+  read k-mer set with sequence the assembly cannot contain, depressing QV and
+  distorting completeness. R2 must not be trimmed. The script self-tests the trim
+  before doing any real work.
+- **`verify_masking_chain.sh` counts lowercase in each round's output.** A
+  RepeatMasker `.tbl` reports what that round found in its *input*, not the
+  cumulative masking of its output, so `.tbl` files cannot detect masking being
+  lost between rounds.
+
+`identify_species.sh` deliberately works from reads rather than from the
+assembly: rodent genomes carry NUMTs, so a cytb sequence pulled out of a nuclear
+assembly may be a diverged pseudogene rather than the real mitochondrion.
 
 ## Tests and CI
 
