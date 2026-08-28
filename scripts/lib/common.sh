@@ -641,23 +641,39 @@ rna_align_hisat2_log() {
 # rat 42.6%); anything below this means masking was lost or never applied.
 SOFTMASK_MIN_PERCENT="${SOFTMASK_MIN_PERCENT:-20}"
 
+# Percent of bases that are lowercase (soft-masked). Prints -1 for no sequence.
+#
+# Line-at-a-time counting. An earlier implementation ran a per-character awk
+# substr() loop over the whole genome; stripping newlines first would instead
+# make awk buffer the entire multi-gigabase sequence as ONE record, needing
+# ~6-8 GB of heap for a count that needs none (and mawk, the default awk on
+# Debian/Ubuntu images, can fail outright on a record over 2 GB). FASTA line
+# wrapping already bounds the record size, so keep the newlines.
+masked_percent_of() {
+    local fasta_file="$1"
+    local lower total
+    [[ -f "$fasta_file" ]] || { printf '%s\n' "-1"; return 0; }
+
+    # Two streaming tr passes rather than one awk pass. awk's per-record gsub
+    # runs at roughly 8 MB/s here, which is ~5 minutes on a 2.3 Gb genome, and
+    # this is called several times per rebuild job; tr streams at ~180 MB/s, so
+    # both passes together finish in well under a minute. Neither buffers.
+    lower="$(grep -v '^>' "$fasta_file" | tr -dc 'acgtn' | wc -c)"
+    total="$(grep -v '^>' "$fasta_file" | tr -d '\n\r' | wc -c)"
+
+    if [[ -z "$total" || "$total" -eq 0 ]]; then
+        printf '%s\n' "-1"
+        return 0
+    fi
+    awk -v l="$lower" -v t="$total" 'BEGIN { printf("%.2f", 100 * l / t) }'
+}
+
 assert_softmasked_fasta() {
     local fasta_file="$1"
     local percent
 
     [[ -f "$fasta_file" ]] || die "Softmask check input not found: $fasta_file"
-
-    # Line-at-a-time counting. The original implementation ran a per-character
-    # awk substr() loop over the whole genome; stripping newlines first would
-    # instead make awk buffer the entire multi-gigabase sequence as ONE record,
-    # needing ~6-8 GB of heap for a count that needs none (and mawk, the default
-    # awk on Debian/Ubuntu images, can fail outright on a >2 GB record). FASTA
-    # line wrapping already bounds the record size, so keep the newlines.
-    percent="$(awk '
-        /^>/ { next }
-        { sub(/\r$/, ""); total += length($0); gsub(/[^acgtn]/, "", $0); lower += length($0) }
-        END { if (total == 0) { print -1 } else { printf("%.2f", 100 * lower / total) } }
-    ' "$fasta_file")"
+    percent="$(masked_percent_of "$fasta_file")"
 
     if awk -v p="$percent" 'BEGIN { exit !(p < 0) }'; then
         die "Softmask check found no sequence in: $fasta_file"

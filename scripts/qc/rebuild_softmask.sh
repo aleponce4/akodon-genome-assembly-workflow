@@ -34,19 +34,23 @@ WORK="${TMPDIR:-/tmp}/rebuild_softmask.$$"
 [[ -d "$RM_DIR"    ]] || { echo "ERROR: not a directory: $RM_DIR" >&2; exit 1; }
 [[ -f "$ASSEMBLY"  ]] || { echo "ERROR: assembly not found: $ASSEMBLY" >&2; exit 1; }
 
-# bedtools is not part of this pipeline's conda environments, so it is often
-# absent on the cluster. Fall back to awk, which needs nothing beyond coreutils.
-# Both paths produce byte-identical output. Set SOFTMASK_BACKEND=awk to force the
-# fallback (used by the backend-equivalence test).
-BACKEND="${SOFTMASK_BACKEND:-}"
-if [[ -z "$BACKEND" ]]; then
-    if command -v bedtools >/dev/null 2>&1; then
-        BACKEND=bedtools
-    else
-        BACKEND="awk"
-        echo "NOTE: bedtools not on PATH - using the awk backend (identical output)"
-    fi
-fi
+# The awk backend is the DEFAULT, for two reasons.
+#
+# 1. Correctness. `bedtools maskfasta` truncates FASTA headers at the first
+#    whitespace, discarding Supernova's trailing metadata:
+#        source   >0 edges=1350105..1171819 left=... ver=1.10 style=4
+#        bedtools >0
+#    Stage 11 records the FULL original header in its map and stage 20 restores
+#    it, so truncation would propagate into the final deliverables and into
+#    anything submitted to GenBank.
+# 2. Availability. bedtools is not installed by any of this pipeline's conda
+#    environments, so on the cluster it is usually absent anyway.
+#
+# The two backends were verified to produce identical SEQUENCE on the real 2.29 Gb
+# assembly (same md5 of the unwrapped sequence, same 1,000,455,906 masked bp);
+# they differ only in that header handling. Set SOFTMASK_BACKEND=bedtools to
+# force the other path.
+BACKEND="${SOFTMASK_BACKEND:-awk}"
 case "$BACKEND" in
     bedtools)
         command -v bedtools >/dev/null 2>&1 \
@@ -113,61 +117,104 @@ masked_bp="$(awk '{ s += $3 - $2 } END { print s + 0 }' "$WORK/merged.bed")"
 echo "  merged intervals: $merged_n"
 echo "  repeat-masked bp: $masked_bp"
 
+# Every interval name must exist in the assembly. If stage 03's MIN_SCAFFOLD_BP
+# changed, or the assembly was re-run, Supernova's numeric scaffold names shift
+# and the .out coordinates then refer to different sequences. Both backends
+# silently ignore intervals for names they cannot find, which would install a
+# genome masked in the WRONG PLACES while still landing in a plausible-looking
+# percentage band. Catch it here instead.
+echo "Checking that every interval's sequence exists in the assembly"
+grep '^>' "$ASSEMBLY" | sed 's/^>//; s/[ \t].*$//' | LC_ALL=C sort -u > "$WORK/asm_names"
+cut -f1 "$WORK/merged.bed" | LC_ALL=C sort -u > "$WORK/bed_names"
+LC_ALL=C comm -23 "$WORK/bed_names" "$WORK/asm_names" > "$WORK/orphan_names"
+orphans="$(wc -l < "$WORK/orphan_names")"
+if (( orphans > 0 )); then
+    echo "ERROR: $orphans sequence name(s) in the RepeatMasker .out files are absent from $(basename "$ASSEMBLY")" >&2
+    echo "       The .out files were produced against a DIFFERENT assembly, so their" >&2
+    echo "       coordinates do not apply. Masking would land in the wrong places." >&2
+    echo "       First few:" >&2
+    head -5 "$WORK/orphan_names" | sed 's/^/         /' >&2
+    exit 1
+fi
+echo "  all $(wc -l < "$WORK/bed_names") interval sequence names resolve"
+
 echo "Applying soft-mask to $(basename "$ASSEMBLY") [$BACKEND]"
 if [[ "$BACKEND" == "bedtools" ]]; then
     bedtools maskfasta -soft -fi "$ASSEMBLY" -bed "$WORK/merged.bed" -fo "$OUTPUT"
 else
-    # Load intervals per sequence, then rewrite each record with those ranges
-    # lowercased. Output is wrapped at 60 columns, matching bedtools maskfasta.
+    # Streaming, one line at a time. Accumulating each scaffold into a single
+    # awk string is O(n^2): a 21.5 Mb scaffold built from 60-character lines
+    # costs ~359k reallocations copying the whole string each time, which does
+    # not finish. Here each line is masked and emitted immediately, and the
+    # interval list is walked with a cursor that only moves forward, so the
+    # whole pass is linear in (bases + intervals) with bounded memory.
+    #
+    # Line structure is preserved rather than rewrapped: the input is already
+    # 60-column wrapped, so this matches bedtools maskfasta byte for byte while
+    # never holding a whole scaffold in memory.
     awk -v bed="$WORK/merged.bed" '
-        function flush_record(   i, j, lo, hi, seqlen) {
-            # `have` not `name == ""`: scaffold names here are numeric strings,
-            # and awk would compare "0" to "" numerically and skip the record.
-            if (!have) return
-            seqlen = length(seq)
-            for (i = 1; i <= n[name]; i++) {
-                lo = s[name, i] + 1          # BED is 0-based half-open
-                hi = e[name, i]
-                if (lo < 1) lo = 1
-                if (hi > seqlen) hi = seqlen
-                if (hi >= lo)
-                    seq = substr(seq, 1, lo - 1) tolower(substr(seq, lo, hi - lo + 1)) substr(seq, hi + 1)
-            }
-            print ">" hdr
-            for (j = 1; j <= seqlen; j += 60) print substr(seq, j, 60)
-        }
         BEGIN {
+            # merged.bed is grouped by sequence and sorted by start, so store it
+            # flat with a per-sequence [first, last] index range.
+            m = 0
             while ((getline line < bed) > 0) {
                 split(line, f, "\t")
-                i = ++n[f[1]]
-                s[f[1], i] = f[2]; e[f[1], i] = f[3]
+                c = f[1] ""
+                if (!(c in first)) first[c] = ++m; else m++
+                S[m] = f[2] + 0; E[m] = f[3] + 0
+                last[c] = m
             }
             close(bed)
         }
         /^>/ {
-            flush_record()
             hdr = substr($0, 2)
-            name = hdr; sub(/[ \t].*$/, "", name)   # FASTA id is the first token
-            seq = ""; have = 1
+            name = hdr; sub(/[ \t].*$/, "", name); name = name ""
+            if (name in first) { k = first[name]; kend = last[name] } else { k = 1; kend = 0 }
+            pos = 0
+            print $0
             next
         }
-        { sub(/\r$/, ""); seq = seq $0 }
-        END { flush_record() }
+        {
+            sub(/\r$/, "")
+            L = $0; len = length(L)
+            # drop intervals that end at or before this line
+            while (k <= kend && E[k] <= pos) k++
+            j = k
+            while (j <= kend && S[j] < pos + len) {
+                lo = (S[j] > pos ? S[j] : pos) - pos + 1        # 1-based in line
+                hi = (E[j] < pos + len ? E[j] : pos + len) - pos
+                if (hi >= lo)
+                    L = substr(L, 1, lo - 1) tolower(substr(L, lo, hi - lo + 1)) substr(L, hi + 1)
+                j++
+            }
+            print L
+            pos += len
+        }
     ' "$ASSEMBLY" > "$OUTPUT"
 fi
 [[ -s "$OUTPUT" ]] || { echo "ERROR: output was not created: $OUTPUT" >&2; exit 1; }
 
 echo
 echo "Verifying result"
-awk '
+# Cross-check the bases actually lowercased against the bases the merged BED
+# says should have been. The two are computed independently; if masking silently
+# went missing they will not agree, and a plausible-looking percentage alone
+# would not reveal it.
+awk -v expected="$masked_bp" '
     /^>/ { next }
     { sub(/\r$/, ""); total += length($0); gsub(/[^acgtn]/, "", $0); lower += length($0) }
     END {
-        if (total == 0) { print "  ERROR: no sequence"; exit 1 }
-        printf "  genome length : %d bp\n", total
-        printf "  soft-masked   : %d bp (%.2f%%)\n", lower, 100 * lower / total
+        if (total == 0) { print "  ERROR: no sequence" > "/dev/stderr"; exit 1 }
+        printf "  genome length  : %d bp\n", total
+        printf "  soft-masked    : %d bp (%.2f%%)\n", lower, 100 * lower / total
+        printf "  expected (BED) : %d bp\n", expected
+        if (lower < expected * 0.999) {
+            printf "  ERROR: %d bp fewer masked than the merged intervals require.\n", expected - lower > "/dev/stderr"
+            print  "         Intervals were dropped or misapplied; not safe to use." > "/dev/stderr"
+            exit 1
+        }
         if (100 * lower / total < 20) {
-            print "  WARNING: below 20% -- expected 40-48% for a rodent"
+            print "  ERROR: under 20% masked -- expected 40-48% for a rodent" > "/dev/stderr"
             exit 1
         }
     }
