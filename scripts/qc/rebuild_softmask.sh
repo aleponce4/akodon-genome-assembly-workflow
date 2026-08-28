@@ -33,7 +33,27 @@ WORK="${TMPDIR:-/tmp}/rebuild_softmask.$$"
 
 [[ -d "$RM_DIR"    ]] || { echo "ERROR: not a directory: $RM_DIR" >&2; exit 1; }
 [[ -f "$ASSEMBLY"  ]] || { echo "ERROR: assembly not found: $ASSEMBLY" >&2; exit 1; }
-command -v bedtools >/dev/null 2>&1 || { echo "ERROR: bedtools not on PATH" >&2; exit 1; }
+
+# bedtools is not part of this pipeline's conda environments, so it is often
+# absent on the cluster. Fall back to awk, which needs nothing beyond coreutils.
+# Both paths produce byte-identical output. Set SOFTMASK_BACKEND=awk to force the
+# fallback (used by the backend-equivalence test).
+BACKEND="${SOFTMASK_BACKEND:-}"
+if [[ -z "$BACKEND" ]]; then
+    if command -v bedtools >/dev/null 2>&1; then
+        BACKEND=bedtools
+    else
+        BACKEND="awk"
+        echo "NOTE: bedtools not on PATH - using the awk backend (identical output)"
+    fi
+fi
+case "$BACKEND" in
+    bedtools)
+        command -v bedtools >/dev/null 2>&1 \
+            || { echo "ERROR: SOFTMASK_BACKEND=bedtools but bedtools is not on PATH" >&2; exit 1; } ;;
+    awk) ;;
+    *) echo "ERROR: SOFTMASK_BACKEND must be 'bedtools' or 'awk', got '$BACKEND'" >&2; exit 1 ;;
+esac
 
 mkdir -p "$WORK"
 trap 'rm -rf "$WORK"' EXIT
@@ -61,14 +81,80 @@ echo "  total intervals before merge: $total_raw"
 
 echo "Sorting and merging overlapping intervals"
 LC_ALL=C sort -k1,1 -k2,2n -S 50% "$WORK/all.bed" > "$WORK/sorted.bed"
-bedtools merge -i "$WORK/sorted.bed" > "$WORK/merged.bed"
+
+if [[ "$BACKEND" == "bedtools" ]]; then
+    bedtools merge -i "$WORK/sorted.bed" > "$WORK/merged.bed"
+else
+    # Sweep the sorted intervals, extending while they overlap or abut. This is
+    # exactly `bedtools merge -d 0`: a new interval starts only when its start
+    # lies strictly beyond the current end.
+    #
+    # `have` rather than testing chrom against "": Supernova names scaffolds
+    # numerically ("0", "1", ...), and awk treats a numeric-looking field as a
+    # strnum, so `chrom != ""` compares NUMERICALLY and 0 == "" is true. That
+    # silently discards every interval on scaffold 0. Sequence names are also
+    # forced to string comparison with ("") for the same reason -- otherwise
+    # "01" and "1" would compare equal.
+    awk 'BEGIN { OFS = "\t" }
+        {
+            if (!have || ($1 "") != (chrom "") || $2 > end) {
+                if (have) print chrom, start, end
+                chrom = $1; start = $2; end = $3; have = 1
+            } else if ($3 > end) {
+                end = $3
+            }
+        }
+        END { if (have) print chrom, start, end }
+    ' "$WORK/sorted.bed" > "$WORK/merged.bed"
+fi
+
 merged_n="$(wc -l < "$WORK/merged.bed")"
 masked_bp="$(awk '{ s += $3 - $2 } END { print s + 0 }' "$WORK/merged.bed")"
 echo "  merged intervals: $merged_n"
 echo "  repeat-masked bp: $masked_bp"
 
-echo "Applying soft-mask to $(basename "$ASSEMBLY")"
-bedtools maskfasta -soft -fi "$ASSEMBLY" -bed "$WORK/merged.bed" -fo "$OUTPUT"
+echo "Applying soft-mask to $(basename "$ASSEMBLY") [$BACKEND]"
+if [[ "$BACKEND" == "bedtools" ]]; then
+    bedtools maskfasta -soft -fi "$ASSEMBLY" -bed "$WORK/merged.bed" -fo "$OUTPUT"
+else
+    # Load intervals per sequence, then rewrite each record with those ranges
+    # lowercased. Output is wrapped at 60 columns, matching bedtools maskfasta.
+    awk -v bed="$WORK/merged.bed" '
+        function flush_record(   i, j, lo, hi, seqlen) {
+            # `have` not `name == ""`: scaffold names here are numeric strings,
+            # and awk would compare "0" to "" numerically and skip the record.
+            if (!have) return
+            seqlen = length(seq)
+            for (i = 1; i <= n[name]; i++) {
+                lo = s[name, i] + 1          # BED is 0-based half-open
+                hi = e[name, i]
+                if (lo < 1) lo = 1
+                if (hi > seqlen) hi = seqlen
+                if (hi >= lo)
+                    seq = substr(seq, 1, lo - 1) tolower(substr(seq, lo, hi - lo + 1)) substr(seq, hi + 1)
+            }
+            print ">" hdr
+            for (j = 1; j <= seqlen; j += 60) print substr(seq, j, 60)
+        }
+        BEGIN {
+            while ((getline line < bed) > 0) {
+                split(line, f, "\t")
+                i = ++n[f[1]]
+                s[f[1], i] = f[2]; e[f[1], i] = f[3]
+            }
+            close(bed)
+        }
+        /^>/ {
+            flush_record()
+            hdr = substr($0, 2)
+            name = hdr; sub(/[ \t].*$/, "", name)   # FASTA id is the first token
+            seq = ""; have = 1
+            next
+        }
+        { sub(/\r$/, ""); seq = seq $0 }
+        END { flush_record() }
+    ' "$ASSEMBLY" > "$OUTPUT"
+fi
 [[ -s "$OUTPUT" ]] || { echo "ERROR: output was not created: $OUTPUT" >&2; exit 1; }
 
 echo
