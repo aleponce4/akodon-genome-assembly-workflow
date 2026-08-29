@@ -141,12 +141,44 @@ mkdir -p logs/slurm
 bam_dir="$SCRIPT_DIR/RNA_seq/bam_files/$SAMPLE_ID"
 bam_count=0
 [[ -d "$bam_dir" ]] && bam_count="$(find "$bam_dir" -maxdepth 1 -name '*.bam' | wc -l)"
+
+# Compare against the number of libraries stage 15 will actually process. An
+# earlier version tested only for "at least one BAM" and cheerfully reported
+# "stage 15 will skip them" when 1 of 10 existed -- understating the ETA by a
+# full day, because the other nine still had to be aligned.
+lib_count="$(awk '{print NF}' <<<"${RNA_ALIGN_LIBRARY_IDS:-}" 2>/dev/null || echo 0)"
+[[ -n "$lib_count" ]] || lib_count=0
+if (( lib_count == 0 )); then
+    lib_count="$(
+        (
+            set +u
+            # shellcheck disable=SC1090,SC1091
+            source "$SCRIPT_DIR/scripts/lib/common.sh"
+            source_config "$CONFIG_PATH"
+            awk '{print NF}' <<<"$RNA_ALIGN_LIBRARY_IDS"
+        ) 2>/dev/null || echo 0
+    )"
+fi
+(( lib_count > 0 )) || lib_count=0
 # Serial critical path, summing the configured walltime LIMITS. Jobs are chained
 # with afterok, so each queues independently -- add real queue wait on top.
-if (( bam_count > 0 )); then
-    say "RNA BAMs   : $bam_count present in RNA_seq/bam_files/$SAMPLE_ID (stage 15 will skip them)"
+if (( lib_count > 0 && bam_count >= lib_count )); then
+    say "RNA BAMs   : $bam_count of $lib_count libraries already aligned - stage 15 will skip all of them"
     say "ETA        : up to ~39 h of walltime limits, plus queue wait"
     say "             (rebuild 4 + preprocess 4 + GALBA/BRAKER3 24 + tsebra 1 + isoform 2 + headers 4)"
+elif (( bam_count > 0 )); then
+    say "RNA BAMs   : $bam_count of ${lib_count:-?} libraries aligned - stage 15 must still align $(( lib_count - bam_count ))"
+    say "ETA        : up to ~63 h of walltime limits, plus queue wait"
+    say "             Stage 15 skips the $bam_count finished BAMs but not the rest, so treat"
+    say "             this as the long case, not the short one."
+    say ""
+    say "WARNING    : stage 15 has RNA_ALIGN_TIME to align $(( lib_count - bam_count )) libraries plus build"
+    say "             a HISAT2 index. On the 'campus' partition that ceiling is 24 h,"
+    say "             which is the partition maximum - consider the 'long' partition."
+    if [[ "${ACKNOWLEDGE_LONG_RUN:-0}" != "1" ]]; then
+        fail "refusing to submit a ~63 h chain unattended by default.
+  Re-run with ACKNOWLEDGE_LONG_RUN=1 to proceed anyway, or finish the RNA alignment first."
+    fi
 else
     say "RNA BAMs   : NONE - stage 15 must align 10 libraries first, which is the long pole"
     say "ETA        : up to ~63 h of walltime limits, plus queue wait"
