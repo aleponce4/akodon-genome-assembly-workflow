@@ -100,9 +100,18 @@ esac
 # echoes ANNOTATION_SAMPLE_ID -- so a repo shipping placeholder rows would abort
 # a perfectly valid run, while a sample present in the table but missing its
 # RepeatMasker output would sail through. Resolve the real paths via the config.
+# Resolve a path helper from common.sh in a subshell, so sourcing the library
+# and the config cannot leak into this script's environment. `set +u` because
+# common.sh and pipeline.env both reference variables that may be unset here.
 resolve_path() {
-    bash -c 'source "$1/scripts/lib/common.sh"; source_config "$2"; '"$3"' "$4"' \
-        _ "$SCRIPT_DIR" "$CONFIG_PATH" "$SAMPLE_ID" 2>/dev/null
+    local fn="$1"
+    (
+        set +u
+        # shellcheck disable=SC1090,SC1091
+        source "$SCRIPT_DIR/scripts/lib/common.sh"
+        source_config "$CONFIG_PATH"
+        "$fn" "$SAMPLE_ID"
+    ) 2>/dev/null
 }
 rm_dir_check="$(resolve_path repeatmasker_workdir)"
 asm_check="$(resolve_path filtered_fasta)"
@@ -145,10 +154,11 @@ else
     say ""
     say "WARNING    : 63 h does NOT fit a Friday-evening to Monday-morning window,"
     say "             and that assumes zero queue time across 7 chained jobs."
-    say "             To finish sooner, run the RNA alignment on its own FIRST:"
-    say "                 PIPELINE_START_STAGE=15 PIPELINE_END_STAGE=15 \\"
-    say "                   ANNOTATION_SAMPLE_MODE=single ANNOTATION_SAMPLE_ID=$SAMPLE_ID \\"
-    say "                   ENABLE_ANNOTATION=1 bash run_pipeline.sh config/pipeline.env"
+    say "             To finish sooner, run the RNA alignment on its own FIRST."
+    say "             Single line, no continuations - some terminals mangle those:"
+    say ""
+    say "  PIPELINE_START_STAGE=15 PIPELINE_END_STAGE=15 ANNOTATION_SAMPLE_MODE=single ANNOTATION_SAMPLE_ID=$SAMPLE_ID ENABLE_ANNOTATION=1 bash run_pipeline.sh config/pipeline.env"
+    say ""
     say "             It does not depend on the mask rebuild -- soft-masking only"
     say "             changes letter case, and HISAT2 is case-insensitive."
     if [[ "${ACKNOWLEDGE_LONG_RUN:-0}" != "1" ]]; then
