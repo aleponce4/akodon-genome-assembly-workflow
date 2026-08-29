@@ -46,8 +46,15 @@ command -v sbatch >/dev/null 2>&1 || fail "sbatch not on PATH - run this on the 
 # scaffold into one awk string, which does not finish on a 21.5 Mb scaffold.
 grep -q 'masked_percent_of' "$SCRIPT_DIR/scripts/lib/common.sh" \
     || fail "scripts/lib/common.sh is stale (no masked_percent_of). Run 'git pull'."
-grep -q 'the interval list is walked with a cursor' "$SCRIPT_DIR/scripts/qc/rebuild_softmask.sh" \
-    || fail "scripts/qc/rebuild_softmask.sh is the old quadratic backend, which will hit the walltime. Run 'git pull'."
+
+# Match CODE, not prose. An earlier version of this guard grepped for a comment
+# sentence that happens to wrap across two lines, so it never matched and
+# rejected a perfectly good file. `seq = seq $0` is the quadratic accumulator's
+# signature: it builds each scaffold as one growing awk string, which does not
+# finish on a 21.5 Mb scaffold. The linear rewrite has no such accumulation.
+if grep -q 'seq = seq \$0' "$SCRIPT_DIR/scripts/qc/rebuild_softmask.sh"; then
+    fail "scripts/qc/rebuild_softmask.sh is the old quadratic backend, which will hit the walltime. Run 'git pull'."
+fi
 
 # In-flight guard. Stages 11/15/20 write FIXED paths, not per-run paths, so two
 # overlapping chains would have two jobs writing the same 2.3 GB simplified
