@@ -98,7 +98,36 @@ case "$BRAKER3_MODE" in
         ;;
 esac
 
-(( ${#bam_files[@]} > 0 )) || die "No BAM files were found for BRAKER3."
+if (( ${#bam_files[@]} == 0 )); then
+    die "No BAM files were found for BRAKER3.
+  Searched: $bam_glob
+  Stage 15 writes into \$RNA_ALIGN_BAM_DIR/<sample_id>/, so a FLAT
+  BRAKER3_BAM_GLOB will match nothing. Check that BRAKER3_BAM_GLOB is either
+  empty (so the per-sample template is used) or points at the sample directory."
+fi
+
+# Reject implausibly small BAMs before they reach BRAKER3. A real alignment is
+# hundreds of MB at minimum; anything tiny is a placeholder or a truncated
+# transfer. This is not hypothetical: a 28-byte "smoke.bam" left behind by
+# setup_smoke_test.sh run against a production config sat in a live BAM
+# directory for months and was picked up by the *.bam glob.
+BRAKER3_MIN_BAM_BYTES="${BRAKER3_MIN_BAM_BYTES:-1048576}"
+declare -a usable_bams=()
+for bam_file in "${bam_files[@]}"; do
+    bam_size="$(stat -c '%s' "$bam_file" 2>/dev/null || echo 0)"
+    if (( bam_size < BRAKER3_MIN_BAM_BYTES )); then
+        log "WARNING: ignoring $bam_file - ${bam_size} bytes is below the ${BRAKER3_MIN_BAM_BYTES}-byte minimum for a real alignment"
+        continue
+    fi
+    usable_bams+=("$bam_file")
+done
+(( ${#usable_bams[@]} > 0 )) \
+    || die "Every BAM matched by '$bam_glob' was below the ${BRAKER3_MIN_BAM_BYTES}-byte minimum; none are real alignments."
+if (( ${#usable_bams[@]} != ${#bam_files[@]} )); then
+    log "Using ${#usable_bams[@]} of ${#bam_files[@]} matched BAMs"
+fi
+bam_files=("${usable_bams[@]}")
+
 for bam_file in "${bam_files[@]}"; do
     validate_bam_references "$bam_file"
 done

@@ -9,6 +9,24 @@ CONFIG_PATH="${1:-$REPO_ROOT/config/smoke_test.env}"
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
 source_config "$CONFIG_PATH"
+
+# This script fabricates mock FASTQs, BAMs and FASTAs at whatever paths the
+# config resolves to. Handed a PRODUCTION config it will happily scatter them
+# through real data directories -- and it did: a 28-byte "smoke.bam" sat in a
+# live RNA_seq/bam_files/<real_sample_id>/ directory for nearly three months
+# before a *.bam glob picked it up and fed it to BRAKER3.
+#
+# smoke_mode is true only when SMOKE_TEST_MODE is set, which the smoke configs
+# do and production configs do not. Refuse anything else.
+if ! smoke_mode; then
+    die "refusing to run against a non-smoke config: $CONFIG_PATH
+
+  This script writes mock data files at the paths the config resolves to, so
+  running it with a production config contaminates real data directories.
+  Use config/smoke_test.env or config/slurm_toy.env, or set SMOKE_TEST_MODE=1
+  if you genuinely intend to scaffold a throwaway tree at these paths."
+fi
+
 ensure_base_dirs
 ensure_dir "$DATA_DIR"
 ensure_dir "$RNA_ALIGN_FASTQ_DIR"
