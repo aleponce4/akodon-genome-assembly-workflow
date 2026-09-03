@@ -65,6 +65,19 @@ fi
 [[ -f "$ANNOTATION_LONGEST_ISOFORM_SCRIPT" ]] || die "Longest isoform script not found: $ANNOTATION_LONGEST_ISOFORM_SCRIPT"
 [[ -f "$genome_fasta" ]] || die "Simplified annotation genome not found: $genome_fasta"
 command -v "$SINGULARITY_BIN" >/dev/null 2>&1 || die "Singularity executable not found: $SINGULARITY_BIN"
+
+# Discover TSEBRA's module directory inside the container rather than hardcoding
+# it, so a container layout change fails here with a clear message instead of
+# mid-loop with an ImportError. Honour an explicit override if given.
+tsebra_python_dir="${TSEBRA_PYTHON_DIR:-}"
+if [[ -z "$tsebra_python_dir" ]]; then
+    tsebra_python_dir="$("$SINGULARITY_BIN" exec "$BRAKER_SIF" \
+        bash -c 'dirname "$(readlink -f "$(command -v tsebra.py)")"' 2>/dev/null || true)"
+fi
+[[ -n "$tsebra_python_dir" ]] \
+    || die "Could not locate TSEBRA's module directory inside $BRAKER_SIF. Set TSEBRA_PYTHON_DIR explicitly (it is /opt/TSEBRA/bin in the standard braker3 image)."
+log "TSEBRA modules for get_longest_isoform.py: $tsebra_python_dir"
+
 cd "$(annotation_isoform_root "$sample_id")"
 
 for idx in "${!model_names[@]}"; do
@@ -77,7 +90,15 @@ for idx in "${!model_names[@]}"; do
     ensure_dir "$output_dir"
 
     log "Selecting longest isoforms for model $model_name"
-    "$SINGULARITY_BIN" exec -B "$PROJECT_ROOT:$PROJECT_ROOT" "$BRAKER_SIF" \
+    # get_longest_isoform.py is a TSEBRA utility and imports TSEBRA's own
+    # modules (genome_anno). It lives OUTSIDE the container, so invoking it as
+    # `python3 <host path>` makes sys.path[0] the host bin directory, where
+    # genome_anno.py does not exist -- ModuleNotFoundError four seconds in,
+    # after BRAKER3 has already spent ~40 h upstream. tsebra.py itself works
+    # only because it runs from inside TSEBRA's own directory.
+    "$SINGULARITY_BIN" exec -B "$PROJECT_ROOT:$PROJECT_ROOT" \
+        --env "PYTHONPATH=${tsebra_python_dir}${PYTHONPATH:+:$PYTHONPATH}" \
+        "$BRAKER_SIF" \
         python3 "$ANNOTATION_LONGEST_ISOFORM_SCRIPT" -g "$input_gtf" -o "$output_gtf"
 
     "$SINGULARITY_BIN" exec -B "$PROJECT_ROOT:$PROJECT_ROOT" "$BRAKER_SIF" \
