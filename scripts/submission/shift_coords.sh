@@ -47,7 +47,7 @@ for f in "$SRC"/*.gtf; do
         }
     ' FILENAME_B="$b" "$f" > "$OUT/$b" 2>>/tmp/shift.log
 done
-cat /tmp/shift.log | sed 's/^/  /'; rm -f /tmp/shift.log
+sed 's/^/  /' /tmp/shift.log; rm -f /tmp/shift.log
 
 echo
 echo "=== verify: any coordinate now exceeds its scaffold length? ==="
