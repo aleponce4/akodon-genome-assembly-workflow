@@ -17,7 +17,7 @@ mkdir -p "$OUT" "$W"
 cp "$IN" "$W/in.gtf"
 
 echo "### AGAT convert+normalise ($(date +%H:%M:%S))"
-cd "$W"
+cd "$W" || exit 1
 "$MM" run -n akodon-agat agat_convert_sp_gxf2gxf.pl -g "$W/in.gtf" -o "$W/out.gff3" \
     > "$W/agat.log" 2>&1
 rc=$?

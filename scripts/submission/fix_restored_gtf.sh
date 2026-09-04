@@ -11,13 +11,12 @@ OUT="$B/submission/gtf_fixed"
 mkdir -p "$OUT"
 
 echo "=== available restored GTFs ==="
-ls "$SRC"/*.gtf 2>/dev/null | xargs -n1 basename | sed 's/^/  /'
+for f in "$SRC"/*.gtf; do
+    [ -e "$f" ] || continue
+    echo "  $(basename "$f")"
+done
 echo
 for f in "$SRC"/*.gtf; do
-    [ -f "$f" ] || continue
-    b=$(basename "$f")
-    awk -F'\t' -v OFS='\t' '/^#/{print; next} NF>=9 { sub(/[ \t].*$/,"",$1); print }' "$f" > "$OUT/$b"
-    before=$(awk -F'\t' '!/^#/ && NF>=9{print $1}' "$f" | head -1)
-    after=$(awk -F'\t' '!/^#/ && NF>=9{print $1}' "$OUT/$b" | head -1)
-    printf '  %-56s "%s" -> "%s"\n' "$b" "${before:0:28}" "$after"
+    [ -e "$f" ] || continue
+    echo "  $(basename "$f")"
 done

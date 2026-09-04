@@ -13,29 +13,6 @@ OUT="${2:?output required}"
 MIN="${3:-200}"
 RPT="${OUT%.fasta}.trim_report.tsv"
 
-awk -v minlen="$MIN" -v report="$RPT" '
-    function emit(   i, s, e, keep) {
-        if (name == "") return
-        # first/last non-N base positions were tracked while streaming
-        if (firstbase == 0) { dropped_allN++; return }   # entirely N
-        s = firstbase; e = lastbase
-        newlen = e - s + 1
-        if (newlen < minlen) { dropped_short++; return }
-        if (s > 1 || e < L) {
-            trimmed++
-            printf "%s\t%d\t%d\t%d\t%d\n", name, L, s-1, L-e, newlen >> report
-        }
-        kept++; keptbp += newlen
-        print ">" hdr
-        # re-emit sequence from the buffer file, wrapped at 60
-        cmd = "sed -n " recstart "," recend "p " infile " | tr -d \"\n\r\" | cut -c" s "-" e " | fold -w 60"
-        system(cmd); close(cmd)
-    }
-    BEGIN { print "sequence\torig_len\ttrim_5p\ttrim_3p\tnew_len" > report }
-' /dev/null 2>/dev/null
-
-# The awk-with-system approach above is fragile; use a single-pass python
-# implementation instead, which streams and is far easier to reason about.
 python3 - "$IN" "$OUT" "$MIN" "$RPT" <<'PY'
 import sys
 inp, outp, minlen, rpt = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
