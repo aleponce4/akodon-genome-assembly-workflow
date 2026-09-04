@@ -1,0 +1,51 @@
+Contamination screening -- Akodon montensis sample 0339
+=======================================================
+
+Screened assembly : akodon_0339_genbank.fasta  (4,977 sequences, 2,291,029,792 bp)
+
+1. FCS-GX (foreign organism screen)
+-----------------------------------
+Tool      : NCBI FCS-GX v0.5.5-9-gfc836c1, via usegalaxy.org
+Database  : GX build 2023-01-24 (3,025,824 sequences, 709.264 Gbp)
+Run date  : 2026-09-04
+Taxid     : 10069 (Akodon), asserted division anml:rodents
+Coverage  : agg-cvg 0.697
+
+RESULT: CLEAN. The action report contains zero rows -- FCS-GX identified no
+contaminant sequence and recommends no exclusions or trims.
+
+Corroborating checks:
+  - All 4,977 scaffolds appear in the taxonomy report, confirming the uploaded
+    assembly was complete and not truncated.
+  - Inferred primary divisions (anml:rodents, anml:mammals, anml:primates) and
+    resolved species "Akodon montensis" agree with the asserted taxonomy, an
+    independent confirmation of sample identity.
+
+Taxonomy-report window tally (informational; not actionable):
+  primary-div             52,642
+  repeat                  13,170
+  low-coverage             1,009
+  transposon                 452
+  inconclusive               367
+  same-kingdom-chimeric        4
+  primary-div(virus)           1
+
+The four same-kingdom-chimeric windows are low-scoring (44-76) hits to distant
+vertebrates (lamprey, rattlesnake, cavefish, white shark) in repetitive
+sequence. The single virus-assigned window is a 2,094 bp endogenous retroviral
+element resembling Simian retrovirus 1 (taxid 11942) on scaffold 203 -- ordinary
+inherited mammalian genomic content, not an infectious agent and not hantavirus,
+which is a non-integrating negative-sense RNA virus and cannot occur in an
+assembly. FCS-GX flagged none of these for action.
+
+2. FCS-adaptor (adaptor/vector screen)
+--------------------------------------
+Previously run; no adaptor contamination requiring action.
+
+3. VecScreen / UniVec
+---------------------
+59 loci met the VecScreen "strong" raw-score threshold. None are terminal
+(within 25 bp of a sequence end), so none require trimming under NCBI rules.
+See vecscreen_hits.tsv.
+
+Overall: the assembly passes NCBI contamination screening with no edits required.

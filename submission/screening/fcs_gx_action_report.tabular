@@ -1,0 +1,2 @@
+##[["FCS genome report", 2, 1], {"git-rev": "v0.5.5-9-gfc836c1", "run-date": "Fri Sep  4 17:07:01 2026", "db": {"build-date": "2023-01-24", "seqs": 3025824, "Gbp": 709.264}, "run-info": {"agg-cvg": 0.697183, "asserted-div": "anml:rodents", "inferred-primary-divs": ["anml:rodents", "anml:mammals", "anml:primates"], "corrected-primary-divs": ["anml:rodents", "anml:mammals", "anml:primates"], "species": "Akodon montensis", "genome-hash": "3e2ad49d22d242c2"}}]
+#seq_id	start_pos	end_pos	seq_len	action	div	agg_cont_cov	top_tax_name

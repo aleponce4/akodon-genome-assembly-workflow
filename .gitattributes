@@ -7,3 +7,15 @@
 *.pl text eol=lf
 *.md text eol=lf
 *.cfg text eol=lf
+# Bioinformatics data formats: force LF. NCBI tooling (table2asn, tbl2asn) and
+# most parsers choke on or silently mis-handle CRLF, and a Windows checkout of a
+# .tbl or FASTA would otherwise get CRLF from the `* text=auto` rule above.
+*.txt text eol=lf
+*.fasta text eol=lf
+*.fa text eol=lf
+*.tbl text eol=lf
+*.tabular text eol=lf
+*.gff3 text eol=lf
+*.gtf text eol=lf
+*.bed text eol=lf
+*.py text eol=lf

@@ -1,0 +1,103 @@
+--------------------------------------------------------------------------------
+
+------------------------------------- mrna -------------------------------------
+Number of gene                                              24178
+Number of mrna                                              24178
+Number of mrnas with utr both sides                         17
+Number of mrnas with at least one utr                       285
+Number of cds                                               24178
+Number of exon                                              195282
+Number of five_prime_utr                                    207
+Number of start_codon                                       23927
+Number of stop_codon                                        24034
+Number of three_prime_utr                                   95
+Number of exon in cds                                       195282
+Number of exon in five_prime_utr                            207
+Number of exon in three_prime_utr                           95
+Number of intron in cds                                     171104
+Number of intron in exon                                    171104
+Number gene overlapping                                     363
+Number of single exon gene                                  5185
+Number of single exon mrna                                  5185
+mean mrnas per gene                                         1.0
+mean cdss per mrna                                          1.0
+mean exons per mrna                                         8.1
+mean five_prime_utrs per mrna                               0.0
+mean start_codons per mrna                                  1.0
+mean stop_codons per mrna                                   1.0
+mean three_prime_utrs per mrna                              0.0
+mean exons per cds                                          8.1
+mean exons per five_prime_utr                               1.0
+mean exons per three_prime_utr                              1.0
+mean introns in cdss per mrna                               7.1
+mean introns in exons per mrna                              7.1
+Total gene length (bp)                                      682093343
+Total mrna length (bp)                                      682093343
+Total cds length (bp)                                       34660453
+Total exon length (bp)                                      35671182
+Total five_prime_utr length (bp)                            764667
+Total start_codon length (bp)                               71768
+Total stop_codon length (bp)                                72099
+Total three_prime_utr length (bp)                           246062
+Total intron length per cds (bp)                            646422161
+Total intron length per exon (bp)                           646422161
+mean gene length (bp)                                       28211
+mean mrna length (bp)                                       28211
+mean cds length (bp)                                        1434
+mean exon length (bp)                                       183
+mean five_prime_utr length (bp)                             3694
+mean start_codon length (bp)                                3
+mean stop_codon length (bp)                                 3
+mean three_prime_utr length (bp)                            2590
+mean cds piece length (bp)                                  177
+mean five_prime_utr piece length (bp)                       3694
+mean three_prime_utr piece length (bp)                      2590
+mean intron in cds length (bp)                              3778
+mean intron in exon length (bp)                             3778
+median gene length (bp)                                     8687
+median mrna length (bp)                                     8687
+median cds length (bp)                                      126
+median exon length (bp)                                     126
+median five_prime_utr length (bp)                           1822
+median start_codon length (bp)                              3
+median stop_codon length (bp)                               3
+median three_prime_utr length (bp)                          1491
+median cds piece length (bp)                                126
+median five_prime_utr piece length (bp)                     1822
+median three_prime_utr piece length (bp)                    1491
+median intron in cds length (bp)                            1247
+median intron in exon length (bp)                           1247
+90 percentile gene length (bp)                              73869
+90 percentile mrna length (bp)                              73869
+90 percentile cds length (bp)                               267
+90 percentile exon length (bp)                              269
+90 percentile five_prime_utr length (bp)                    9063
+90 percentile start_codon length (bp)                       3
+90 percentile stop_codon length (bp)                        3
+90 percentile three_prime_utr length (bp)                   6873
+90 percentile cds piece length (bp)                         267
+90 percentile five_prime_utr piece length (bp)              9063
+90 percentile three_prime_utr piece length (bp)             6873
+90 percentile intron in cds length (bp)                     7472
+90 percentile intron in exon length (bp)                    7472
+Longest gene (bp)                                           809442
+Longest mrna (bp)                                           809442
+Longest cds (bp)                                            26487
+Longest exon (bp)                                           36499
+Longest five_prime_utr (bp)                                 36372
+Longest start_codon (bp)                                    3
+Longest stop_codon (bp)                                     3
+Longest three_prime_utr (bp)                                10959
+Longest cds piece (bp)                                      11555
+Longest five_prime_utr piece (bp)                           36372
+Longest three_prime_utr piece (bp)                          10959
+Longest intron into cds part (bp)                           334895
+Longest intron into exon part (bp)                          334895
+Shortest gene (bp)                                          62
+Shortest mrna (bp)                                          62
+Shortest cds piece (bp)                                     1
+Shortest five_prime_utr piece (bp)                          80
+Shortest three_prime_utr piece (bp)                         9
+Shortest intron into cds part (bp)                          22
+Shortest intron into exon part (bp)                         22
+

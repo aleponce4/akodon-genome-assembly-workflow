@@ -1,0 +1,188 @@
+>Feature akodon_0339_mitochondrion
+1	67	gene
+			gene	trnF
+1	67	tRNA
+			product	tRNA-Phe
+			note	anticodon:GAA
+68	1026	gene
+			gene	rrnS
+68	1026	rRNA
+			product	12S ribosomal RNA
+1027	1094	gene
+			gene	trnV
+1027	1094	tRNA
+			product	tRNA-Val
+			note	anticodon:TAC
+1095	2656	gene
+			gene	rrnL
+1095	2656	rRNA
+			product	16S ribosomal RNA
+2657	2731	gene
+			gene	trnL2
+2657	2731	tRNA
+			product	tRNA-Leu
+			note	anticodon:TAA
+2732	3688	gene
+			gene	NAD1
+2732	3688	CDS
+			product	NADH dehydrogenase subunit 1
+			transl_table	2
+3687	3754	gene
+			gene	trnI
+3687	3754	tRNA
+			product	tRNA-Ile
+			note	anticodon:GAT
+3822	3752	gene
+			gene	trnQ
+3822	3752	tRNA
+			product	tRNA-Gln
+			note	anticodon:TTG
+3830	3898	gene
+			gene	trnM
+3830	3898	tRNA
+			product	tRNA-Met
+			note	anticodon:CAT
+3893	4936	gene
+			gene	NAD2
+3893	4936	CDS
+			product	NADH dehydrogenase subunit 2
+			transl_table	2
+4935	4999	gene
+			gene	trnW
+4935	4999	tRNA
+			product	tRNA-Trp
+			note	anticodon:TCA
+5070	5002	gene
+			gene	trnA
+5070	5002	tRNA
+			product	tRNA-Ala
+			note	anticodon:TGC
+5144	5073	gene
+			gene	trnN
+5144	5073	tRNA
+			product	tRNA-Asn
+			note	anticodon:GTT
+5244	5176	gene
+			gene	trnC
+5244	5176	tRNA
+			product	tRNA-Cys
+			note	anticodon:GCA
+5312	5245	gene
+			gene	trnY
+5312	5245	tRNA
+			product	tRNA-Tyr
+			note	anticodon:GTA
+5314	6858	gene
+			gene	COX1
+5314	6858	CDS
+			product	cytochrome c oxidase subunit I
+			transl_table	2
+6924	6856	gene
+			gene	trnS2
+6924	6856	tRNA
+			product	tRNA-Ser
+			note	anticodon:TGA
+6928	6993	gene
+			gene	trnD
+6928	6993	tRNA
+			product	tRNA-Asp
+			note	anticodon:GTC
+6995	7678	gene
+			gene	COX2
+6995	7678	CDS
+			product	cytochrome c oxidase subunit II
+			transl_table	2
+7682	7747	gene
+			gene	trnK
+7682	7747	tRNA
+			product	tRNA-Lys
+			note	anticodon:TTT
+7750	7953	gene
+			gene	ATP8
+7750	7953	CDS
+			product	ATP synthase F0 subunit 8
+			transl_table	2
+7911	8591	gene
+			gene	ATP6
+7911	8591	CDS
+			product	ATP synthase F0 subunit 6
+			transl_table	2
+8591	9375	gene
+			gene	COX3
+8591	9375	CDS
+			product	cytochrome c oxidase subunit III
+			transl_table	2
+9375	9443	gene
+			gene	trnG
+9375	9443	tRNA
+			product	tRNA-Gly
+			note	anticodon:TCC
+9441	9791	gene
+			gene	NAD3
+9441	9791	CDS
+			product	NADH dehydrogenase subunit 3
+			transl_table	2
+9792	9858	gene
+			gene	trnR
+9792	9858	tRNA
+			product	tRNA-Arg
+			note	anticodon:TCG
+9859	10155	gene
+			gene	NAD4L
+9859	10155	CDS
+			product	NADH dehydrogenase subunit 4L
+			transl_table	2
+10149	11530	gene
+			gene	NAD4
+10149	11530	CDS
+			product	NADH dehydrogenase subunit 4
+			transl_table	2
+11524	11591	gene
+			gene	trnH
+11524	11591	tRNA
+			product	tRNA-His
+			note	anticodon:GTG
+11592	11650	gene
+			gene	trnS1
+11592	11650	tRNA
+			product	tRNA-Ser
+			note	anticodon:GCT
+11650	11719	gene
+			gene	trnL1
+11650	11719	tRNA
+			product	tRNA-Leu
+			note	anticodon:TAG
+11711	13531	gene
+			gene	NAD5
+11711	13531	CDS
+			product	NADH dehydrogenase subunit 5
+			transl_table	2
+14052	13528	gene
+			gene	NAD6
+14052	13528	CDS
+			product	NADH dehydrogenase subunit 6
+			transl_table	2
+14121	14053	gene
+			gene	trnE
+14121	14053	tRNA
+			product	tRNA-Glu
+			note	anticodon:TTC
+14125	15264	gene
+			gene	CYTB
+14125	15264	CDS
+			product	cytochrome b
+			transl_table	2
+15269	15343	gene
+			gene	trnT
+15269	15343	tRNA
+			product	tRNA-Thr
+			note	anticodon:TGT
+15422	15355	gene
+			gene	trnP
+15422	15355	tRNA
+			product	tRNA-Pro
+			note	anticodon:TGG
+5145	5175	rep_origin
+			note	origin of light strand replication
+15423	16404	D-loop
+			note	control region

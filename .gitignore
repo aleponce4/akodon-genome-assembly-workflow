@@ -26,3 +26,15 @@ annotation_functional/data/bin/*.sif
 Repeat_modeler_container/
 __pycache__/
 .pytest_cache/
+
+# Submission and deposit artefacts.
+# The small text records (statistics, screening reports, the mitogenome and its
+# feature table, READMEs) ARE tracked -- they are the provenance of what was
+# submitted and are worth versioning. The multi-GB sequence data is not: it is
+# regenerable from the pipeline and belongs in GenBank/Zenodo, not in git.
+submission/*.fasta
+submission/*.fasta.gz
+submission/gff3/
+submission/vecscreen_hits.tsv
+submission/screening/*.tabular.gz
+zenodo/
